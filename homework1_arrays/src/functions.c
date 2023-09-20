@@ -3,8 +3,10 @@
 void first_task()
 {
     printf("\nFirst task\n\n");
+
     int elem_count = FIRST_TASK_N * FIRST_TASK_N;
     int arr[elem_count];
+    
     for (int i = 0; i < elem_count; i++) arr[i] = i+1;
 
     for (int j = 0; j < FIRST_TASK_N; j++)
