@@ -41,9 +41,9 @@ struct store_t {
 };
 
 /**
- * @brief      Multithread global variable counter
+ * @brief      Multithread life simulator
  * @return     Returns 0 on success, otherwise 1 is returned
  */
 int first_task();
 
-#endif // HOMEWORK1_H
+#endif // HOMEWORK8_H
