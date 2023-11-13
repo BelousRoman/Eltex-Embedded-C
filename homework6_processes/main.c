@@ -1,6 +1,9 @@
 #include "hdr/functions.h"
 
-int main(void){
+
+
+int main(void)
+{
 	first_task();
 	second_task();
 
