@@ -1,9 +1,35 @@
 #include "../hdr/functions.h"
-#include <errno.h>
 
+char ***cmds = NULL;
+int cmds_lim = DEF_CMDS_LIM;
+int *cmds_params = NULL;
+
+/* Function called on exit() */
+void _cleanup(void)
+{
+	int index;
+	int sec_index;
+
+	if (cmds != NULL)
+	{
+		/* Free allocated memory */
+		for (index = 0; index < cmds_lim; ++index)
+		{
+			for (sec_index = cmds_params[index]-1; sec_index >= 0; --sec_index)
+			{
+				/* First free every argument */
+				free(cmds[index][sec_index]);
+			}
+			/* Then argument's array */
+			free(cmds[index]);
+		}
+		free(cmds);
+		free(cmds_params);
+	}
+}
 
 int first_task(){
-	printf("First task\n");
+	puts("First task");
 
 	pid_t frst_child_pid, scnd_child_pid,
 	      frst_grandchild_pid, scnd_grandchild_pid, thrd_grandchild_pid;
@@ -56,12 +82,7 @@ int first_task(){
 }
 
 int second_task(){
-	printf("Second task\n");
-
-	char ***cmds = NULL;
-	int cmds_lim = DEF_CMDS_LIM;
-	int *cmds_params = NULL;
-
+	puts("Second task");
 	/* 
 	* Declare:
 	* buf - array of 80 chars;
@@ -87,27 +108,31 @@ int second_task(){
 	int cur_cmd = 0;
 	int cur_param = 1;
 
-	printf("alloc to cmds = %d\n", cmds_lim);
 	cmds = malloc(cmds_lim);
 	cmds_params = malloc(cmds_lim);
 
 	for (index = 0; index < cmds_lim; ++index)
 	{
 		cmds_params[index] = DEF_PARAMS_NUM;
-		printf("alloc to cmds[%d] = %d\n", index, cmds_params[index]);
 		cmds[index] = malloc(cmds_params[index]);
 		for (sec_index = 0; sec_index < cmds_params[index]; ++sec_index)
 		{
-			printf("alloc cmds[%d][%d] to %d\n", index, sec_index, DEF_STR_SIZE);
 			cmds[index][sec_index] = malloc(DEF_STR_SIZE);
 		}
 	}
 
-	/* Read user input */
-	fgets(buf, STDIN_READ_LIM, stdin);
-	// snprintf(buf, STDIN_READ_LIM, "ls -a -l\n");
+	int ret = atexit(_cleanup);
+	if (ret != 0)
+	{
+		perror("atexit");
+	}
 
-	for (index = STDIN_READ_LIM; index >= 0; --index)
+	/* Read user input */
+	printf("Print your input: ");
+	fgets(buf, STDIN_READ_LIM, stdin);
+
+	/* Replace 10th symbol ('\n') with 0 */
+	for (index = 0; index < STDIN_READ_LIM; ++index)
 	{
 		if (buf[index] == '\n')
 		{
@@ -118,13 +143,17 @@ int second_task(){
 
 	/* Treat first sequence as command name for first arguments array */
 	str_ptr = strtok(buf, " ");
-	
 	snprintf(cmds[cur_cmd][0], DEF_STR_SIZE, "/bin/%s", str_ptr);
-	
-	printf("<%s>\n", cmds[0][0]);
 
+	/* Gradually parse char sequences and set arguments for current command */
 	while ((str_ptr = strtok(NULL, " ")) != NULL)
 	{
+		/* 
+		* If parsed "&&" treat next sequences as new command.
+		* Set last argument of previous command to NULL and see if there's a
+		* need to allocate more memory to cmds pointer, then write the first
+		* parsed sequence into cmds[cur_cmds][0].
+		*/
 		if (str_ptr[0] == '&' && str_ptr[1] == '&')
 		{
 			cmds[cur_cmd][cur_param] = NULL;
@@ -145,6 +174,7 @@ int second_task(){
 				ptr = realloc(cmds, (cur_cmd+1));
 				if (ptr != NULL)
 				{
+					cmds = ptr;
 					cmds[cur_cmd] = malloc(cmds_params[cur_cmd]);
 
 					for (index = 0; index < cmds_params[cur_cmd]; ++index)
@@ -157,74 +187,50 @@ int second_task(){
 			}
 			str_ptr = strtok(NULL, " ");
 			snprintf(cmds[cur_cmd][0], DEF_STR_SIZE, "/bin/%s", str_ptr);
-			printf("<%s>\n", cmds[cur_cmd][0]);
 
 			continue;
 		}
 
+		/* 
+		* Allocate more memory if argument need to be placed into index, that
+		* is reserved for NULL or cur_param is going out of the space of
+		* reserved memory.
+		*/
 		if (cur_param >= (cmds_params[cur_cmd]-1))
 		{
 			cmds_params[cur_cmd] += 1;
-			// cur_param++;
-
-			printf("Realloc cmds_params[%d] to %d\n", cur_cmd, cmds_params[cur_cmd]);
 			char * ptr = realloc(cmds[cur_cmd], cmds_params[cur_cmd]);
 			if (ptr != NULL)
 			{
-				// cmds[cur_cmd] = ptr;
-				printf("alloc cmds[%d][%d] to %d\n", cur_cmd, cmds_params[cur_cmd]-1, DEF_STR_SIZE);
+				cmds[cur_cmd] = ptr;
 				cmds[cur_cmd][cmds_params[cur_cmd]-1] = malloc(DEF_STR_SIZE);
 			}
 		}
 
-		printf("Strncpy %s to cmds[%d][%d]\n", str_ptr, cur_cmd, cur_param);
+		/* Write write the parsed sequence into current argument of command */
 		strncpy(cmds[cur_cmd][cur_param], str_ptr, DEF_STR_SIZE);
 		cur_param++;
 	}
 
-	printf("set cmds[%d][%d] to NULL\n", cur_cmd, cmds_params[cur_cmd]-1);
-	// cmds[cur_cmd][(cmds_params[cur_cmd]-1)] = NULL; // old one
+	/* Set the last argument in command as NULL */
 	cmds[cur_cmd][cur_param] = NULL;
 
+	/* 'for' loop to run parsed commands as child processes */
 	for (index = 0; index <= cur_cmd; ++index)
 	{
 		pid_t pid;
 		pid = fork();
 		if (pid == 0)
 		{
-			printf("Forked to call cmd: %s\n", cmds[index][0]);
 			if (execv(cmds[index][0], cmds[index]) < 0)
 			{
 				strerror(errno);
-				puts("execv() call returned error\n");
+				perror("execv");
+				
 			}
 		}
 		wait(NULL);
 	}
-
-	printf("cur cmd = %d; cur param = %d; max params = %d\n", cur_cmd, cur_param, cmds_params[cur_cmd]);
-
-
-	/* Free allocated memory */
-	printf("free until index >= %d\n", cmds_lim);
-	for (index = 0; index < cmds_lim; ++index)
-	{
-		printf("free args until sec_index >= %d\n", cmds_params[index]);
-		// for (sec_index = 0; sec_index < cmds_params[index]; ++sec_index)
-		for (sec_index = cmds_params[index]-1; sec_index >= 0; --sec_index)
-		{
-			printf("Free cmds[%d][%d] = %ld from %ld\n", index, sec_index, &cmds[index][sec_index], &cmds[index]);
-			if (&cmds[index][sec_index] == NULL)
-			{
-				puts("Is null x(");
-				continue;
-			}
-			free(cmds[index][sec_index]);
-		}
-		free(cmds[index]);
-	}
-	free(cmds);
-	free(cmds_params);
 	
 	exit(EXIT_SUCCESS);
 }
