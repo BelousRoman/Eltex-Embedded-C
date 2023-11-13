@@ -101,7 +101,7 @@ int second_task(){
 	* for every array of arguments - cmds[index];
 	* for every string of argument - cmds[index][sec_index].
 	*/
-	char buf[80];
+	char buf[STDIN_READ_LIM];
 	char * str_ptr;
 	int index;
 	int sec_index;
