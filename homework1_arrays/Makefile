@@ -8,7 +8,7 @@ OFLAGS := -c
 LIBS := -lm
 
 all: main.c $(OBJECTS)
-	$(CC) main.c $(OBJECTS) $(LIBS) -o $(BIN)
+	$(CC) main.c $(OBJECTS) $(LIBS) -o $(BIN) $(CFLAGS)
 
 functions.o: $(HEADERS) $(SOURCES)
 	$(CC) $(SOURCES) $(OFLAGS) functions.o
