@@ -52,13 +52,13 @@
 #define T3_STDIN_READ_LIM 80
 
 /**
- * @brief      Creates 6 processes from 1 process
+ * @brief      Interprocess interaction using pipe()
  * @return     none
  */
 int first_task();
 
 /**
- * @brief      Command interpreter
+ * @brief      Interprocess interaction using mkfifo()
  * @return     none
  */
 int second_task();
