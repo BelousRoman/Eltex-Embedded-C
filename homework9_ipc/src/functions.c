@@ -119,7 +119,7 @@ int first_task(){
 		
 		close(pipe_ctop[0]); /* Close read-end of pipe_ctop channel */
 		wait(NULL);
-		puts("");
+
 		return EXIT_SUCCESS;
 	}
 }
@@ -185,8 +185,6 @@ int second_task()
 		}
 	}
 
-	puts("");
-
 	return EXIT_SUCCESS;
 }
 
@@ -194,21 +192,15 @@ int third_task(){
 	puts("Third task");
 	/* 
 	* Declare:
-	* buf - array of 80 chars;
-	* str_ptr - pointer on char to work with strtok();
-	* index & sec_index - index variables used in 'for' loops;
-	* cur_cmd - variable, containing index of current command for parsing.
-	* cur_param - variable, containing index of current param to set.
-	*
-	* Allocate memory to:
-	* cmds - triple pointer on char, used to store arrays of arguments,
-	* used in execv() call;
-	* cmds_params - pointer on int, used to store current amount of parameters
-	* in particular element of cmds[index].
-	*
-	* Allocate memory in 'for' loop:
-	* for every array of arguments - cmds[index];
-	* for every string of argument - cmds[index][sec_index].
+	* - buf - array of 80 chars;
+	* - str_ptr - pointer on char to work with strtok();
+	* - index & sec_index - index variables used in 'for' loops;
+	* - cur_cmd - variable, containing index of current command for parsing;
+	* - cur_param - variable, containing index of current param to set;
+	* - pipe_fds[2] - array of file descriptors, used to redirect STDOUT from
+	* one process to another;
+	* - redir_cmd - vaiable, used to store index of cmd, whose output will be
+	* redirected to next process.
 	*/
 	char buf[T3_STDIN_READ_LIM];
 	char * str_ptr;
@@ -216,10 +208,30 @@ int third_task(){
 	int sec_index;
 	int cur_cmd = 0;
 	int cur_param = 1;
+	int pipe_fds[2];
+	int redir_cmd = -1;
 
+	/* Create a pipe for redirecting STDIN and STDOUT */
+	pipe(pipe_fds);
+
+	/*
+	* Allocate memory to:
+	* - cmds - triple pointer on char, used to store arrays of arguments,
+	* used in execv() call;
+	* - cmds_params - pointer on int, used to store current amount of parameters
+	* in particular element of cmds[index].
+	*/
 	cmds = malloc(cmds_lim);
 	cmds_params = malloc(cmds_lim);
 
+	/*
+	* Set number of params in command for every element of cmds_params array in
+	* every corresponding number.
+	*
+	* Allocate memory in 'for' loop:
+	* - for every array of arguments - cmds[index];
+	* - for every string of argument - cmds[index][sec_index].
+	*/
 	for (index = 0; index < cmds_lim; ++index)
 	{
 		cmds_params[index] = T3_DEF_PARAMS_NUM;
@@ -230,6 +242,7 @@ int third_task(){
 		}
 	}
 
+	/* Register function called on exit */
 	int ret = atexit(_cleanup);
 	if (ret != 0)
 	{
@@ -257,13 +270,18 @@ int third_task(){
 	/* Gradually parse char sequences and set arguments for current command */
 	while ((str_ptr = strtok(NULL, " ")) != NULL)
 	{
+		/* Set the redir_cmd value to index of the current command */
+		if (str_ptr[0] == '|')
+		{
+			redir_cmd = cur_cmd;
+		}
 		/* 
 		* If parsed "&&" treat next sequences as new command.
 		* Set last argument of previous command to NULL and see if there's a
 		* need to allocate more memory to cmds pointer, then write the first
 		* parsed sequence into cmds[cur_cmds][0].
 		*/
-		if (str_ptr[0] == '&' && str_ptr[1] == '&')
+		if ((str_ptr[0] == '&' && str_ptr[1] == '&') || str_ptr[0] == '|')
 		{
 			cmds[cur_cmd][cur_param] = NULL;
 
@@ -331,17 +349,36 @@ int third_task(){
 		pid = fork();
 		if (pid == 0)
 		{
+			/*
+			* If current iter index is equal to redir_cmd, then redirect STDOUT
+			* to pipe write-end, otherwise if (index-1) is equal to redir_cmd,
+			* redirect STDIN to read-end of the pipe.
+			*/
+			if (index == redir_cmd)
+			{
+				dup2(pipe_fds[1], STDOUT_FILENO);
+			}
+			else if (index-1 == redir_cmd)
+			{
+				dup2(pipe_fds[0], STDIN_FILENO);
+			}
 			if (execv(cmds[index][0], cmds[index]) < 0)
 			{
 				strerror(errno);
 				perror("execv");
-				
 			}
 		}
 		wait(NULL);
+		/* Close the corresponding file descriptors of the file */
+		if (index == redir_cmd)
+		{
+			close(pipe_fds[1]);
+		}
+		else if (index-1 == redir_cmd)
+		{
+			close(pipe_fds[0]);
+		}
 	}
-
-	puts("");
 		
 	exit(EXIT_SUCCESS);
 }
