@@ -4,7 +4,7 @@
 * The first_task() function is a algorithm, using basic file operations, such
 * as open, write, syncfs, lseek, read, close and unlink.
 *
-* The second_task() function is a text editor, written, using ncurses lib, 
+* The second_task() function is a text editor, written, using ncurses lib, and
 * compiled as separate binary.
 * Editor is capable of:
 * - opening file, if file does not exist - it will be created instead;
@@ -13,7 +13,7 @@
 * Basic interactions are processed by pressing F1, F2 and F3 buttons, pressing
 * F1 and F2 will open a popup window for opening and saving the file,
 * respectively. These popup windows has buttons, which are navigated through by
-* pressing arrow key left and write, Enter key is used to confirm selection.
+* pressing arrow key left and right, Enter key is used to confirm selection.
 */
 
 #ifndef HOMEWORK10_H
