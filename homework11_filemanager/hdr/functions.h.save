@@ -1,0 +1,45 @@
+/*
+* Eltex's academy homework #10 for lecture 31 "Virtual File System"
+*
+* The first_task() function is a algorithm, using basic file operations, such
+* as open, write, syncfs, lseek, read, close and unlink.
+*
+* The second_task() function is a text editor, written, using ncurses lib, 
+* compiled as separate binary.
+* Editor is capable of:
+* - opening file, if file does not exist - it will be created instead;
+* - write and save changes to a file;
+* - close file without save;
+* Basic interactions are processed by pressing F1, F2 and F3 buttons, pressing
+* F1 and F2 will open a popup window for opening and saving the file,
+* respectively. These popup windows has buttons, which are navigated through by
+* pressing arrow key left and write, Enter key is used to confirm selection.
+*/
+
+#ifndef HOMEWORK10_H
+#define HOMEWORK10_H
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+
+#include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <signal.h>
+#include <curses.h>
+
+W#include <dirent.h>
+
+/**
+ * @brief      Simple file manager
+ * @return     Return 0
+ */
+int first_task();
+
+
+#endif // HOMEWORK10_H
