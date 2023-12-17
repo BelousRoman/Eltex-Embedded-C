@@ -16,11 +16,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
 #include <sys/msg.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <mqueue.h>
 #include <errno.h>
 #include <string.h>
@@ -28,7 +24,6 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <curses.h>
-#include <pthread.h>
 
 /* File permissions and size of message in first_task() */
 #define T1_PERMS                0666

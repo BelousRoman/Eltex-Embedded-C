@@ -17,25 +17,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <fcntl.h>
-#include <sys/ipc.h>
 #include <sys/sem.h>
 #include <semaphore.h>
 #include <sys/shm.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <pthread.h>
 #include <time.h>
 #include <errno.h>
-#include <string.h>
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <curses.h>
-#include <pthread.h>
-
 
 /* File permissions, keys, msg size (in bytes) used in first_task() */
 #define T1_PERMS                    0666

@@ -8,24 +8,15 @@ CFLAGS := -g
 OFLAGS := -c
 LIBS := -lcurses
 
-vpath %.h hdr/
-vpath %.c src/
-
 all: $(BIN_VFS) $(BIN_IDE)
 
-$(BIN_VFS): main.c $(OBJECTS)
-	$(CC) -o $(BIN_VFS) main.c $(OBJECTS) $(CFLAGS) $(LIBS)
+$(BIN_VFS): main.c src/functions.c
+	$(CC) -o $(BIN_VFS) main.c src/functions.c $(CFLAGS) $(LIBS)
+$(BIN_VFS): $(HEADERS)
 
-$(BIN_IDE): texteditor.c $(OBJECTS)
-	$(CC) -o $(BIN_IDE) texteditor.c $(OBJECTS) $(CFLAGS) $(LIBS)
-$(OBJECTS): $(HEADERS)
-
-functions.o: src/functions.c
-	$(CC) $(OFLAGS) functions.o src/functions.c $(CFLAGS)
-
-# functions.o: functions.c functions.h
-# 	$(CC) $(OFLAGS) -o functions.o functions.c $(CFLAGS)
-
+$(BIN_IDE): texteditor.c src/functions.c
+	$(CC) -o $(BIN_IDE) texteditor.c src/functions.c $(CFLAGS) $(LIBS)
+$(BIN_IDE): $(HEADERS)
 
 clean:
 	rm -f $(BIN_VFS) $(BIN_IDE) *.o
