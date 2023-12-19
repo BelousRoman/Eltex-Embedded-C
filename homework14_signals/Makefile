@@ -1,4 +1,4 @@
-BIN := hw13_signals
+BIN := hw14_signals
 HEADERS := hdr/*.h
 SOURCES := src/*.c
 CC := gcc -Wall
