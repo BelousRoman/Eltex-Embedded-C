@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-// #include <time.h>
+#include <fcntl.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -18,6 +19,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #define MSG_SIZE                        256
 
@@ -30,6 +33,7 @@
 
 #define CLIENT_DEF_ALLOC                100
 #define CLIENT_MSG                      "Client_msg"
+#define CLIENTS_COUNT_SEM_NAME          "/clients_count"
 
 /**
  * @brief       Server, using serial scheme, processing one client at the time
