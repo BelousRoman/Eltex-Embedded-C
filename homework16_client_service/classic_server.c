@@ -2,7 +2,7 @@
 
 int main(void)
 {
-    second_task();
+    classic_server();
 	
 	exit(EXIT_SUCCESS);
 }

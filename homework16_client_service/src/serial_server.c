@@ -2,7 +2,8 @@
 
 /*
 * Declare:
-* - server_fd - fd of server socket.
+* - server_fd - fd of server socket;
+* - clients_count - number of served clients.
 */
 int server_fd;
 unsigned int clients_count = 0;
@@ -18,7 +19,6 @@ void shutdown_server(void)
 {
     close(server_fd);
 
-	// puts("\nServer shutdown");
 	printf("Shutdown server at %dth client\n", clients_count);
 }
 
@@ -32,8 +32,7 @@ int first_task(void)
 	* - server & client - server's and client's endpoints;
 	* - client_fd - fd of client socket;
 	* - client_size - size of client's endpoint;
-	* - msg - message buffer;
-	* - clients_count - number of served clients.
+	* - msg - message buffer.
 	*/
     struct sigaction sa;
 	struct sockaddr_in server, client;
@@ -69,6 +68,7 @@ int first_task(void)
 	/* Create socket */
 	server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
+	/* Allow reuse of local address */
 	setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
 	/* Bind server's endpoint to socket */
@@ -119,7 +119,6 @@ int first_task(void)
 		else
 		{
 			clients_count++;
-			// printf("Clients served: %d\r", clients_count);
 			fflush(stdout);
 		}
 		close(client_fd);

@@ -27,13 +27,21 @@
 #define SERVER_ADDR                     "127.0.0.1"
 #define SERVER_TCP_PORT                 9875
 #define SERVER_UDP_PORT                 9876
-#define SERVER_LISTEN_BACKLOG           100
-#define SERVER_DEF_ALLOC                10
+#define SERVER_LISTEN_BACKLOG           1000
+#define SERVER_DEF_ALLOC                1000
 #define SERVER_MSG                      "Server_msg"
+#define SERVER_COUNTER_SEM_NAME         "/server_counter"
+#define SERVER_BUSY_THREADS_SEM_NAME    "/busy_threads"
+#define SERVER_SERVED_CLIENTS_SEM_NAME  "/served_clients"
 
 #define CLIENT_DEF_ALLOC                100
 #define CLIENT_MSG                      "Client_msg"
-#define CLIENTS_COUNT_SEM_NAME          "/clients_count"
+#define CLIENT_COUNTER_SEM_NAME         "/client_counter"
+
+struct client_t {
+    int client_fd;
+    pthread_mutex_t client_mutex;
+};
 
 /**
  * @brief       Server, using serial scheme, processing one client at the time
@@ -45,7 +53,7 @@ int first_task(void);
  * @brief       Server, using classic scheme, sending client fd to new thread
  * @return      0
  */
-int second_task(void);
+int classic_server(void);
 
 /**
  * @brief       Client, creating new threads, connecting to server until one of

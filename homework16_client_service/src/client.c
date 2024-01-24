@@ -6,7 +6,7 @@
 * - create_flag - flag for the main thread to continue creating threads;
 * - alloc_threads - currently allocated elements in 'tid' array;
 * - threads_count - number of created threads;
-* - clients_sem - semaphore to store number of clients, served by server;
+* - counter_sem - semaphore to store number of clients, served by server;
 * - clients_count - variable, passed to sem_getvalue()
 *   to get number of clients, served by server.
 */
@@ -14,7 +14,7 @@ pthread_t *tid;
 int create_flag = 1;
 int alloc_threads = CLIENT_DEF_ALLOC;
 unsigned int threads_count = 0;
-sem_t * clients_sem = NULL;
+sem_t * counter_sem = NULL;
 int clients_count = 0;
 
 /* handler function for SIGINT signal */
@@ -24,7 +24,7 @@ static void sigint_handler(int sig, siginfo_t *si, void *unused)
 }
 
 /* client thread function */
- void *client_ops(void *args)
+void *client_ops(void *args)
 {
     /*
     * Declare global variable:
@@ -87,7 +87,7 @@ static void sigint_handler(int sig, siginfo_t *si, void *unused)
 	}
 
     /* Increment served clients counter */
-    sem_post(clients_sem);
+    sem_post(counter_sem);
 }
 
 int client(void)
@@ -99,10 +99,12 @@ int client(void)
     * - rlim - structure, storing soft and hard limits for maximum number of
     *   file descriptors;
     * - tmp_tid - pointerm, used to temporary store pointer to reallocated
-    *   'tid' array.
+    *   'tid' array;
+    * 
     */
     struct rlimit rlim;
     pthread_t *tmp_tid;
+    struct sigaction sa;
 
     /* Print current rlimit, set new one */
     if (getrlimit(RLIMIT_NOFILE, &rlim) == -1)
@@ -126,11 +128,27 @@ int client(void)
         exit(EXIT_FAILURE);
     }
 
-    /* Client 'clients_sem' semaphore to store number of served clients */
-    clients_sem = sem_open(CLIENTS_COUNT_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
-    if (clients_sem == SEM_FAILED)
+    /* Client 'counter_sem' semaphore to store number of served clients */
+    counter_sem = sem_open(CLIENT_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+    if (counter_sem == SEM_FAILED)
     {
         perror("sem_open");
+        exit(EXIT_FAILURE);
+    }
+
+    sem_getvalue(counter_sem, &clients_count);
+	while (clients_count > 0)
+	{
+		sem_trywait(counter_sem);
+		sem_getvalue(counter_sem, &clients_count);
+	}
+
+    /* Fill sa_mask, set signal handler, redefine SIGINT with sa */
+    sigfillset(&sa.sa_mask);
+    sa.sa_sigaction = sigint_handler;
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+    {
+        perror("sigaction");
         exit(EXIT_FAILURE);
     }
 
@@ -162,11 +180,12 @@ int client(void)
     {
         free(tid);
     }
+    puts("memory freed");
 
     /* Get clients count */
-    sem_getvalue(clients_sem, &clients_count);
-    sem_close(clients_sem);
-    unlink(CLIENTS_COUNT_SEM_NAME);
+    sem_getvalue(counter_sem, &clients_count);
+    sem_close(counter_sem);
+    unlink(CLIENT_COUNTER_SEM_NAME);
     
 	printf("Shut clients at:\n* %d client,\n* %d threads created\n", clients_count, threads_count);
 
