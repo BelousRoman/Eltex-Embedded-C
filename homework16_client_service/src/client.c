@@ -180,7 +180,6 @@ int client(void)
     {
         free(tid);
     }
-    puts("memory freed");
 
     /* Get clients count */
     sem_getvalue(counter_sem, &clients_count);

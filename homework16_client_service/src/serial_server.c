@@ -3,10 +3,10 @@
 /*
 * Declare:
 * - server_fd - fd of server socket;
-* - clients_count - number of served clients.
+* - clients_served - number of served clients.
 */
 int server_fd;
-unsigned int clients_count = 0;
+unsigned int clients_served = 0;
 
 /* Signal handler for SIGINT */
 static void sigint_handler(int sig, siginfo_t *si, void *unused)
@@ -19,12 +19,12 @@ void shutdown_server(void)
 {
     close(server_fd);
 
-	printf("Shutdown server at %dth client\n", clients_count);
+	printf("Server shutdown: %d clients served\n", clients_served);
 }
 
 int first_task(void)
 {
-	puts("First task");
+	puts("Serial server");
 
 	/*
 	* Declare:
@@ -53,18 +53,6 @@ int first_task(void)
 	}
 	server.sin_port = SERVER_TCP_PORT;
 
-    /* Fill sa_mask, set signal handler, redefine SIGINT with sa */
-    sigfillset(&sa.sa_mask);
-    sa.sa_sigaction = sigint_handler;
-    if (sigaction(SIGINT, &sa, NULL) == -1)
-    {
-        perror("sigaction");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Set atexit function */
-	atexit(shutdown_server);
-
 	/* Create socket */
 	server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -88,6 +76,18 @@ int first_task(void)
 		exit(EXIT_FAILURE);
 	}
 
+	/* Fill sa_mask, set signal handler, redefine SIGINT with sa */
+    sigfillset(&sa.sa_mask);
+    sa.sa_sigaction = sigint_handler;
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Set atexit function */
+	atexit(shutdown_server);
+
 	while(1)
 	{
 		/*
@@ -107,19 +107,20 @@ int first_task(void)
 		if (send(client_fd, msg, MSG_SIZE, 0) == -1)
 		{
 			perror("send");
-			exit(EXIT_FAILURE);
-		}
-
-		/* Wait for message from client */
-		if (recv(client_fd, msg, MSG_SIZE, 0) == -1)
-		{
-			perror("recv");
-			exit(EXIT_FAILURE);
+			continue;
 		}
 		else
 		{
-			clients_count++;
-			fflush(stdout);
+			/* Wait for message from client */
+			if (recv(client_fd, msg, MSG_SIZE, 0) == -1)
+			{
+				perror("recv");
+				continue;
+			}
+			else
+			{
+				clients_served++;
+			}
 		}
 		close(client_fd);
 	}
