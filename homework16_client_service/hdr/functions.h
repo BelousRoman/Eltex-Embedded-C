@@ -27,7 +27,7 @@
 #define SERVER_ADDR                     "127.0.0.1"
 #define SERVER_TCP_PORT                 9875
 #define SERVER_UDP_PORT                 9876
-#define SERVER_LISTEN_BACKLOG           1000
+#define SERVER_LISTEN_BACKLOG           100
 #define SERVER_DEF_ALLOC                1000
 #define SERVER_MSG                      "Server_msg"
 #define SERVER_COUNTER_SEM_NAME         "/server_counter"

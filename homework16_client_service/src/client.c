@@ -23,7 +23,7 @@ static void sigint_handler(int sig, siginfo_t *si, void *unused)
     create_flag = 0;
 }
 
-/* client thread function */
+/* Client thread function */
 void *client_ops(void *args)
 {
     /*
@@ -98,9 +98,9 @@ int client(void)
     * Declare:
     * - rlim - structure, storing soft and hard limits for maximum number of
     *   file descriptors;
-    * - tmp_tid - pointerm, used to temporary store pointer to reallocated
+    * - tmp_tid - pointer, used to temporary store pointer to reallocated
     *   'tid' array;
-    * 
+    * - sa - sigaction, used to redefine signal handler for SIGINT.
     */
     struct rlimit rlim;
     pthread_t *tmp_tid;
@@ -128,7 +128,7 @@ int client(void)
         exit(EXIT_FAILURE);
     }
 
-    /* Client 'counter_sem' semaphore to store number of served clients */
+    /* Create 'counter_sem' semaphore to store number of served clients */
     counter_sem = sem_open(CLIENT_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
     if (counter_sem == SEM_FAILED)
     {
@@ -136,6 +136,7 @@ int client(void)
         exit(EXIT_FAILURE);
     }
 
+    /* Reset sem if it is not equal to 0 */
     sem_getvalue(counter_sem, &clients_count);
 	while (clients_count > 0)
 	{
@@ -158,6 +159,9 @@ int client(void)
     * */
 	while(create_flag)
     {
+        /*
+        * Allocate more memory to 'tid' array if it's limit has been reached.
+        */
         if (threads_count >= alloc_threads)
         {
             alloc_threads += CLIENT_DEF_ALLOC;
@@ -174,13 +178,13 @@ int client(void)
 
         threads_count++;
     }
-
+    puts("freeing resources");
     /* Free memory, allocated to 'tid' array */
     if (tid != NULL)
     {
         free(tid);
     }
-
+    puts("freed");
     /* Get clients count */
     sem_getvalue(counter_sem, &clients_count);
     sem_close(counter_sem);
