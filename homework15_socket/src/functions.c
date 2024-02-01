@@ -518,15 +518,6 @@ int third_task(void)
 			exit(EXIT_FAILURE);
 		}
 
-		struct pollfd *pfds = malloc(2*sizeof(struct pollfd));
-		pfds[1].fd = server_fd;
-		pfds[1].events = POLLIN;
-		pfds[0].fd = server_fd;
-		pfds[0].events = POLLIN;
-		int ret = poll(pfds, 2, 0);
-		printf("poll ret = %d, revents = %d%d\n", ret, pfds[0].revents, pfds[1].revents);
-		free(pfds);
-
 		/*
 		* TCP protocol only function, await connection and get client's
 		* endpoint and fd.
@@ -705,15 +696,6 @@ int fourth_task(void)
 			perror("bind");
 			exit(EXIT_FAILURE);
 		}
-
-		struct pollfd *pfds = malloc(2*sizeof(struct pollfd));
-		pfds[0].fd = STDIN_FILENO;
-		pfds[0].events = POLLIN;
-		pfds[1].fd = server_fd;
-		pfds[1].events = POLLIN;
-		int ret = poll(pfds, 2, 10000);
-		printf("poll ret = %d, revents = %d%d\n", ret, pfds[0].revents, pfds[1].revents);
-		free(pfds);
 
 		/* Wait for message from client, get client's endpoint */
 		client_size = sizeof(client);
