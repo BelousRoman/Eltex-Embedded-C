@@ -2,7 +2,7 @@
 
 int main(void)
 {
-    multiproto_server();
+    classic_server();
 	
 	exit(EXIT_SUCCESS);
 }

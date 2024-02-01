@@ -62,7 +62,7 @@ int serial_server(void);
  * @brief       Server, using classic scheme, sending client fd to new thread
  * @return      0
  */
-int multiproto_server(void);
+int classic_server(void);
 
 /**
  * @brief       Client, creating new threads, connecting to server until one of

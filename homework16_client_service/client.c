@@ -1,6 +1,7 @@
 #include "hdr/functions.h"
 
-int main(void){
+int main(void)
+{
     client();
 	
 	exit(EXIT_SUCCESS);
