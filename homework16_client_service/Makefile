@@ -1,27 +1,39 @@
-SSERV_BIN := serial_server
-CSERV_BIN := classic_server
+SERIAL_SERV_BIN := serial_server
+CLASSIC_SERV_BIN := classic_server
 CLIENT_BIN := client
+MULTIPROTO_SERV_BIN := multiproto_server
+MULTIPROTO_CLIENT_BIN := multiproto_client
 HEADERS := hdr/*.h
 SOURCES := src/*.c
 CC := gcc -Wall
 CFLAGS := -g
 OFLAGS := -c
 
-all: $(SSERV_BIN) $(CSERV_BIN) $(CLIENT_BIN)
+all: $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(MULTIPROTO_CLIENT_BIN)
+	mkdir -p ./build
+	mv -f $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(MULTIPROTO_CLIENT_BIN) ./build
 
-$(SSERV_BIN): serial_server.c src/serial_server.c
-	$(CC) -o $(SSERV_BIN) serial_server.c src/serial_server.c $(CFLAGS)
-$(SSERV_BIN): $(HEADERS)
+$(SERIAL_SERV_BIN): serial_server.c src/serial_server.c
+	$(CC) -o $(SERIAL_SERV_BIN) serial_server.c src/serial_server.c $(CFLAGS)
+$(SERIAL_SERV_BIN): $(HEADERS)
 
-$(CSERV_BIN): classic_server.c src/classic_server.c
-	$(CC) -o $(CSERV_BIN) classic_server.c src/classic_server.c $(CFLAGS)
-$(CSERV_BIN): $(HEADERS)
+$(CLASSIC_SERV_BIN): classic_server.c src/classic_server.c
+	$(CC) -o $(CLASSIC_SERV_BIN) classic_server.c src/classic_server.c $(CFLAGS)
+$(CLASSIC_SERV_BIN): $(HEADERS)
 
 $(CLIENT_BIN): client.c src/client.c
 	$(CC) -o $(CLIENT_BIN) client.c src/client.c $(CFLAGS)
 $(CLIENT_BIN): $(HEADERS)
 
+$(MULTIPROTO_SERV_BIN): multiproto_server.c src/multiproto_server.c
+	$(CC) -o $(MULTIPROTO_SERV_BIN) multiproto_server.c src/multiproto_server.c $(CFLAGS)
+$(MULTIPROTO_SERV_BIN): $(HEADERS)
+
+$(MULTIPROTO_CLIENT_BIN): multiproto_client.c src/multiproto_client.c
+	$(CC) -o $(MULTIPROTO_CLIENT_BIN) multiproto_client.c src/multiproto_client.c $(CFLAGS)
+$(MULTIPROTO_CLIENT_BIN): $(HEADERS)
+
 clean:
-	rm -f $(SSERV_BIN) $(CSERV_BIN) $(CLIENT_BIN) *.o
+	rm -rf ./build *.o
 
 rebuild: clean all

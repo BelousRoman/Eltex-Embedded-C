@@ -24,7 +24,7 @@ static void sigint_handler(int sig, siginfo_t *si, void *unused)
 }
 
 /* Client thread function */
-void *client_ops(void *args)
+void *tcp_client(void *args)
 {
     /*
     * Declare global variable:
@@ -56,7 +56,8 @@ void *client_ops(void *args)
 	server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1)
     {
-        printf("socket: %s (%d), threads count: %d\n", strerror(errno), errno, threads_count);
+        printf("socket: %s (%d), threads count: %d\n", strerror(errno), errno,
+                threads_count);
         create_flag = 0;
         return;
     }
@@ -64,7 +65,9 @@ void *client_ops(void *args)
     /* Connect to server */
     if (connect(server_fd, (struct sockaddr *)&server, sizeof(server)) == -1)
     {
-        printf("connect: %s (%d), threads count: %d\n", strerror(errno), errno, threads_count);
+        if (errno != EADDRNOTAVAIL && errno != ECONNREFUSED)
+            printf("connect: %s (%d), threads count: %d\n", strerror(errno),
+                    errno, threads_count);
         create_flag = 0;
         return;
     }
@@ -112,9 +115,11 @@ int client(void)
         perror("getrlimit");
         exit(EXIT_FAILURE);
     }
-    printf("Current maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, rlim.rlim_max);
+    printf("Current maximum file descriptor: %ld / %ld\n", rlim.rlim_cur,
+            rlim.rlim_max);
     rlim.rlim_cur = rlim.rlim_max;
-    printf("New maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, rlim.rlim_max);
+    printf("New maximum file descriptor: %ld / %ld\n", rlim.rlim_cur,
+            rlim.rlim_max);
     if (setrlimit(RLIMIT_NOFILE, &rlim) == -1)
     {
         perror("setrlimit");
@@ -174,23 +179,24 @@ int client(void)
             }
             tid  = tmp_tid;
         }
-        pthread_create(&tid[threads_count], NULL, client_ops, NULL);
+        pthread_create(&tid[threads_count], NULL, tcp_client, NULL);
 
         threads_count++;
     }
-    puts("freeing resources");
+
     /* Free memory, allocated to 'tid' array */
     if (tid != NULL)
     {
         free(tid);
     }
-    puts("freed");
+
     /* Get clients count */
     sem_getvalue(counter_sem, &clients_count);
     sem_close(counter_sem);
     unlink(CLIENT_COUNTER_SEM_NAME);
-    
-	printf("Shut clients at:\n* %d client,\n* %d threads created\n", clients_count, threads_count);
+
+	printf("Shut clients at:\n* %d client,\n* %d threads created\n",
+            clients_count, threads_count);
 
 	exit(EXIT_SUCCESS);
 }

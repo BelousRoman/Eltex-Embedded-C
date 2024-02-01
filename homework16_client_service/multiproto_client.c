@@ -1,8 +1,7 @@
 #include "hdr/functions.h"
 
-int main(void)
-{
-    serial_server();
+int main(void){
+    client();
 	
 	exit(EXIT_SUCCESS);
 }

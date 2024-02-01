@@ -22,7 +22,7 @@ void shutdown_server(void)
 	printf("Server shutdown: %d clients served\n", clients_served);
 }
 
-int first_task(void)
+int serial_server(void)
 {
 	puts("Serial server");
 

@@ -14,7 +14,7 @@ sem_t *clients_counter = NULL;
 sem_t *busy_threads = NULL;
 sem_t *served_clients = NULL;
 pthread_t *tid = NULL;
-struct client_t *clients_q = NULL;
+struct tcp_client_t *clients_q = NULL;
 int alloc_threads = SERVER_DEF_ALLOC * 10;
 int alloc_clients = SERVER_DEF_ALLOC;
 
@@ -27,6 +27,7 @@ static void sigint_handler(int sig, siginfo_t *si, void *unused)
 /* Function provided to atexit() */
 void shutdown_server(void)
 {
+	puts("Shutdown server");
 	int clients_served;
 	int index;
 
@@ -37,8 +38,8 @@ void shutdown_server(void)
     sem_close(clients_counter);
 	sem_close(busy_threads);
 	sem_close(served_clients);
-	unlink(SERVER_COUNTER_SEM_NAME);
-	unlink(SERVER_BUSY_THREADS_SEM_NAME);
+	unlink(SERVER_TCP_COUNTER_SEM_NAME);
+	unlink(SERVER_TCP_BUSY_THREADS_SEM_NAME);
 	unlink(SERVER_SERVED_CLIENTS_SEM_NAME);
 
 	/* Free allocated memory */
@@ -55,7 +56,7 @@ void shutdown_server(void)
 }
 
 /* Server thread function */
-void *server_thread(void *args)
+void *tcp_server_thread(void *args)
 {
 	int client_fd = 0;
 	char msg[MSG_SIZE];
@@ -110,7 +111,8 @@ void *server_thread(void *args)
 				/* Wait for message from client */
 				if (recv(client_fd, msg, MSG_SIZE, 0) == -1)
 				{
-					perror("recv");
+					if (errno != ECONNRESET)
+						perror("recv");
 				}
 				else
 					sem_post(served_clients);
@@ -126,7 +128,7 @@ void *server_thread(void *args)
 	}
 }
 
-int classic_server(void)
+int multiproto_server(void)
 {
 	puts("Classic server");
 
@@ -156,16 +158,15 @@ int classic_server(void)
 	int index;
 	int sec_index;
 	pthread_t *tmp_tid;
-	struct client_t *tmp_clq;
+	struct tcp_client_t *tmp_clq;
 
 	/* Allocate memory to 'tid' and 'clients_q' */
 	tid = malloc(alloc_threads * sizeof(pthread_t));
-	clients_q = malloc(alloc_clients * sizeof(struct client_t));
+	clients_q = malloc(alloc_clients * sizeof(struct tcp_client_t));
 
 	/* Init 'clients_q' queue entries */
 	for (index = 0; index < alloc_clients; ++index)
 	{
-		printf("initing %dth clients_q\n", index);
 		clients_q[index].client_fd = NULL;
 		pthread_mutex_init(&(clients_q[index].client_mutex), NULL);
 	}
@@ -190,14 +191,14 @@ int classic_server(void)
 	/*
 	* Create 'clients_counter', 'busy_threads' and 'served_clients' semaphores.
 	*/
-	clients_counter = sem_open(SERVER_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666,
+	clients_counter = sem_open(SERVER_TCP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666,
 								0);
     if (clients_counter == SEM_FAILED)
     {
         perror("sem_open counter_sem");
         exit(EXIT_FAILURE);
     }
-	busy_threads = sem_open(SERVER_BUSY_THREADS_SEM_NAME, O_CREAT | O_RDWR,
+	busy_threads = sem_open(SERVER_TCP_BUSY_THREADS_SEM_NAME, O_CREAT | O_RDWR,
 							0666, 0);
     if (busy_threads == SEM_FAILED)
     {
@@ -235,7 +236,7 @@ int classic_server(void)
 	/* Create threads */
 	for (index = 0; index < alloc_threads; ++index)
 	{
-		pthread_create(&tid[index], NULL, server_thread, NULL);
+		pthread_create(&tid[index], NULL, tcp_server_thread, NULL);
 	}
 
 	/* Fill 'server' with 0's */
@@ -315,7 +316,7 @@ int classic_server(void)
 					alloc_clients+SERVER_DEF_ALLOC);
 			alloc_clients += SERVER_DEF_ALLOC;
             tmp_clq = realloc(clients_q,
-								(alloc_clients*sizeof(struct client_t)));
+								(alloc_clients*sizeof(struct tcp_client_t)));
             if (tmp_clq == NULL)
             {
                 perror("realloc");
@@ -361,7 +362,7 @@ int classic_server(void)
 
 			for (index = 0; index < SERVER_DEF_ALLOC; ++index)
 			{
-				pthread_create(&tid[index], NULL, server_thread, NULL);
+				pthread_create(&tid[index], NULL, tcp_server_thread, NULL);
 			}
 		}
 		/*
