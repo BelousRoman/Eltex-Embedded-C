@@ -1,421 +1,585 @@
 #include "../hdr/functions.h"
 
-/*
-* Declare:
-* - tcp_clients_counter & udp_clients_counter - semaphores to store number of pending clients for tcp and udp servers;
-* - tcp_busy_threads & udp_busy_threads - semaphore to store number of threads, processing clients;
-* - served_clients - semaphore to store number of clients, served by server;
-* - tcp_server_fd & udp_server_fd & client_fd - fds of server and client;
-* - tid - dynamic array of thread ids;
-* - tcp_clients_q - queue of pending clients;
-* - tcp_alloc_threads - number of creating threads;
-* - tcp_alloc_clients - size of 'tcp_clients_q'.
-*/
-sem_t *tcp_clients_counter = NULL;
-sem_t *udp_clients_counter = NULL;
-sem_t *tcp_busy_threads = NULL;
-sem_t *udp_busy_threads = NULL;
-sem_t *served_clients = NULL;
 int tcp_server_fd;
 int udp_server_fd;
-pthread_t *tcp_tids = NULL;
-pthread_t *udp_tids = NULL;
-struct tcp_client_t *tcp_clients_q = NULL;
-struct udp_client_t *udp_clients_q = NULL;
-struct pollfd *pfds = NULL;
-int tcp_alloc_threads = SERVER_DEF_ALLOC * 10;
-int udp_alloc_threads = SERVER_DEF_ALLOC * 10;
-int tcp_alloc_clients = SERVER_DEF_ALLOC;
-int udp_alloc_clients = SERVER_DEF_ALLOC;
 
-/* Signal handler for SIGINT */
+sem_t *free_tcp_threads_sem = NULL;
+sem_t *free_udp_threads_sem = NULL;
+sem_t *busy_tcp_threads_sem = NULL;
+sem_t *busy_udp_threads_sem = NULL;
+sem_t *served_tcp_clients = NULL;
+sem_t *served_udp_clients = NULL;
+
+struct tcp_server_thread_t *tcp_threads = NULL;
+int tcp_threads_count = 0;
+pthread_mutex_t tcp_threads_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+struct udp_server_thread_t *udp_threads = NULL;
+int udp_threads_count = 0;
+pthread_mutex_t udp_threads_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// sem_t *clients_count_sem;
+
 static void sigint_handler(int sig, siginfo_t *si, void *unused)
 {
     exit(EXIT_SUCCESS);
 }
 
-/* Function provided to atexit() */
 void shutdown_server(void)
 {
-	int clients_served;
+	int tcp_clients_count = 0;
+	int udp_clients_count = 0;
 	int index;
 
-	/* Get number of clients*/
-	sem_getvalue(served_clients, &clients_served);
+	if (served_tcp_clients != NULL)
+		sem_getvalue(served_tcp_clients, &tcp_clients_count);
 
-	/* Close sems, delete files */
-    sem_close(tcp_clients_counter);
-	sem_close(tcp_busy_threads);
-	sem_close(served_clients);
-	unlink(SERVER_TCP_COUNTER_SEM_NAME);
-	unlink(SERVER_TCP_BUSY_THREADS_SEM_NAME);
-	unlink(SERVER_SERVED_CLIENTS_SEM_NAME);
+	if (served_udp_clients != NULL)
+		sem_getvalue(served_udp_clients, &udp_clients_count);
 
-	/* Free allocated memory */
-	if (tcp_tids != NULL)
+	if (tcp_server_fd > 0)
+		close(tcp_server_fd);
+
+	if (udp_server_fd > 0)
+		close(udp_server_fd);
+
+    if (tcp_threads != NULL)
     {
-        free(tcp_tids);
-    }
-	if (tcp_clients_q != NULL)
-    {
-        free(tcp_clients_q);
-    }
-	if (pfds != NULL)
-    {
-        free(pfds);
+        for (index = 0; index < tcp_threads_count; index++)
+        {
+            pthread_cancel(tcp_threads[index].tid);
+            if (tcp_threads[index].client_fd > 0)
+                close(tcp_threads[index].client_fd);
+        }
+
+        free(tcp_threads);
     }
 
-	printf("Server shutdown: %d clients served\n", clients_served);
+	if (udp_threads != NULL)
+    {
+        for (index = 0; index < udp_threads_count; index++)
+        {
+            pthread_cancel(udp_threads[index].tid);
+        }
+
+        free(udp_threads);
+    }
+
+	if (free_tcp_threads_sem != NULL)
+		sem_close(free_tcp_threads_sem);
+	if (free_udp_threads_sem != NULL)
+		sem_close(free_udp_threads_sem);
+	if (busy_tcp_threads_sem != NULL)
+		sem_close(busy_tcp_threads_sem);
+	if (busy_udp_threads_sem != NULL)
+		sem_close(busy_udp_threads_sem);
+	if (served_tcp_clients != NULL)
+		sem_close(served_tcp_clients);
+	if (served_udp_clients != NULL)
+		sem_close(served_udp_clients);
+
+	unlink(SERVER_TCP_QUEUE_NAME);
+	unlink(SERVER_UDP_QUEUE_NAME);
+    unlink(SERVER_TCP_FREE_THREADS_SEM_NAME);
+	unlink(SERVER_UDP_FREE_THREADS_SEM_NAME);
+    unlink(SERVER_TCP_BUSY_THREADS_SEM_NAME);
+    unlink(SERVER_UDP_BUSY_THREADS_SEM_NAME);
+	unlink(SERVER_SERVED_TCP_CLIENTS_SEM_NAME);
+    unlink(SERVER_SERVED_UDP_CLIENTS_SEM_NAME);
+
+	printf("Shut server at:\n* %d client(s) (%d by TCP and %d by UDP)\n", (tcp_clients_count+udp_clients_count), tcp_clients_count, udp_clients_count);
 }
 
-/* TCP server thread function */
-void *tcp_server_thread(void *args)
+void *_tcp_server_thread(void *args)
 {
-	int client_fd = 0;
-	char msg[MSG_SIZE];
-	int index;
+	char msg[SERVER_MSG_SIZE];
+    mqd_t tcp_fds_q;
+	int fd = 0;
+    sem_t *free_tcp_threads_sem;
+    sem_t *busy_tcp_threads_sem;
+    sem_t *clients_count_sem;
+
+    int thread_id = (int)args;
+
+    int sem_value;
+    int ret = EXIT_SUCCESS;
+
+    tcp_fds_q = mq_open(SERVER_TCP_QUEUE_NAME, O_RDONLY);
+    if (tcp_fds_q == -1)
+    {
+        printf("tcp mq_open: %s (%d)\n", strerror(errno), errno);
+    }
 
 	/* Set canceltype so thread could be canceled at any time*/
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
-	/* Loop to process clients */
-	while (1)
+    /* Wait for parent to create sem segments, then get it's fds */
+	while ((free_tcp_threads_sem = sem_open(SERVER_TCP_FREE_THREADS_SEM_NAME, O_RDWR)) == SEM_FAILED)
 	{
-		/* Wait for client */
-		if (sem_wait(tcp_clients_counter) == -1)
+		if (errno != ENOENT)
 		{
-			perror("sem_wait");
-			break;
+			printf("free_tcp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
+			exit(EXIT_FAILURE);
 		}
-
-		/* Mark this thread as busy */
-		if (sem_post(tcp_busy_threads) == -1)
-		{
-			perror("sem_post");
-			break;
-		}
-
-		/* Go through 'tcp_clients_q' to get client's fd */
-		for (index = 0; index < tcp_alloc_clients; ++index)
-		{
-			if (tcp_clients_q[index].client_fd != NULL)
-			{
-				if (pthread_mutex_trylock(&(tcp_clients_q[index].client_mutex))
-					!= 0)
-					continue;
-				else
-				{
-					client_fd = tcp_clients_q[index].client_fd;
-					break;
-				}
-			}
-		}
-		
-		if (client_fd > 0)
-		{
-			/* Send message to client */
-			strncpy(msg, SERVER_MSG, MSG_SIZE);
-			if (send(client_fd, msg, MSG_SIZE, 0) == -1)
-			{
-				perror("send");
-			}
-			else
-			{
-				/* Wait for message from client */
-				if (recv(client_fd, msg, MSG_SIZE, 0) == -1)
-				{
-					perror("recv");
-				}
-				else
-					sem_post(served_clients);
-			}
-			close(client_fd);
-		}
-
-		/* Mark entry in 'tcp_clients_q' and thread as free */
-		client_fd = 0;
-		tcp_clients_q[index].client_fd = NULL;
-		pthread_mutex_unlock(&(tcp_clients_q[index].client_mutex));
-		sem_trywait(tcp_busy_threads);
 	}
+	while ((busy_tcp_threads_sem = sem_open(SERVER_TCP_BUSY_THREADS_SEM_NAME, O_RDWR)) == SEM_FAILED)
+	{
+		if (errno != ENOENT)
+		{
+			printf("busy_tcp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+    while ((clients_count_sem = sem_open(SERVER_SERVED_TCP_CLIENTS_SEM_NAME, O_RDWR)) == SEM_FAILED)
+	{
+		if (errno != ENOENT)
+		{
+			printf("clients_count_sem sem_open: %s (%d)\n", strerror(errno), errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+    sem_post(free_tcp_threads_sem);
+
+    while(1)
+    {
+        if (mq_receive(tcp_fds_q, &fd, sizeof(int), NULL) == -1)
+        {
+			printf("mq_receive: %s (%d)\n", strerror(errno), errno);
+            continue;
+        }
+
+        sem_wait(free_tcp_threads_sem);
+        sem_post(busy_tcp_threads_sem);
+
+        pthread_mutex_lock(&tcp_threads_mutex);
+        pthread_mutex_unlock(&tcp_threads_mutex);
+
+        pthread_mutex_lock(&tcp_threads[thread_id].mutex);
+        tcp_threads[thread_id].client_fd = fd;
+        pthread_mutex_unlock(&tcp_threads[thread_id].mutex);
+
+        //printf("Processing tcp_server_addr #%d will read the %dth fd\n", thread_id, fd);
+
+        while(1)
+        {
+            ret = recv(fd, &msg, sizeof(msg), 0);
+            if (ret == -1)
+            {
+				printf("tcp recv: %s (%d)\n", strerror(errno), errno);
+				if (errno == ECONNRESET)
+					exit(1);
+				else
+                	break;
+            }
+            else if (ret == 0)
+            {
+                break;
+            }
+			
+			break;
+        }
+        sem_wait(busy_tcp_threads_sem);
+        sem_post(free_tcp_threads_sem);
+
+        pthread_mutex_lock(&tcp_threads_mutex);
+        pthread_mutex_unlock(&tcp_threads_mutex);
+
+        pthread_mutex_lock(&tcp_threads[thread_id].mutex);
+        tcp_threads[thread_id].client_fd = 0;
+        pthread_mutex_unlock(&tcp_threads[thread_id].mutex);
+
+        sem_post(clients_count_sem);
+    }
+	
+    mq_close(tcp_fds_q);
+
+	return;
 }
 
-/* UDP server thread function */
-void *udp_server_thread(void *args)
+// TODO: Refine logic, guess each thread should create its own socket and after mq_receive call sendto, providing received endpoint as an argument
+void *_udp_server_thread(void *args)
 {
-	struct sockaddr_in client;
-	memset(&client, NULL, sizeof(client));
-	int client_size = 0;
-	char msg[MSG_SIZE];
-	int index;
+	char msg[SERVER_MSG_SIZE];
+    mqd_t udp_endpoints_q;
+	struct sockaddr_in endpoint;
+	struct sockaddr_in server;
+    sem_t *free_udp_threads_sem;
+    sem_t *busy_udp_threads_sem;
+    sem_t *clients_count_sem;
+
+	int thread_id;
+	int fd = 0;
+	int sem_value;
+    int ret = EXIT_SUCCESS;
+
+    thread_id = (int)args;
+
+    udp_endpoints_q = mq_open(SERVER_UDP_QUEUE_NAME, O_RDONLY);
+    if (udp_endpoints_q == -1)
+    {
+		printf("udp mq_open: %s (%d)\n", strerror(errno), errno);
+    }
 
 	/* Set canceltype so thread could be canceled at any time*/
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
-	/* Loop to process clients */
-	while (1)
+    /* Wait for parent to create sem segments, then get it's fds */
+	while ((free_udp_threads_sem = sem_open(SERVER_UDP_FREE_THREADS_SEM_NAME, O_RDWR)) == SEM_FAILED)
 	{
-		/* Wait for client */
-		if (sem_wait(udp_clients_counter) == -1)
+		if (errno != ENOENT)
 		{
-			perror("sem_wait");
-			break;
+			printf("tcp free_tcp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
+			exit(EXIT_FAILURE);
 		}
-
-		/* Mark this thread as busy */
-		if (sem_post(udp_busy_threads) == -1)
-		{
-			perror("sem_post");
-			break;
-		}
-
-		/* Go through 'tcp_clients_q' to get client's endpoint */
-		for (index = 0; index < udp_alloc_clients; ++index)
-		{
-			if (udp_clients_q[index].client.sin_zero != NULL)
-			{
-				if (pthread_mutex_trylock(&(udp_clients_q[index].client_mutex))
-					!= 0)
-					continue;
-				else
-				{
-					client = udp_clients_q[index].client;
-					break;
-				}
-			}
-		}
-
-		if (client.sin_zero != NULL)
-		{
-			/* Send message to client */
-			strncpy(msg, SERVER_MSG, MSG_SIZE);
-			client_size = sizeof(client);
-			if (recvfrom(udp_server_fd, msg, MSG_SIZE, 0, (struct sockaddr *)&client, &client_size) == -1)
-			{
-				perror("recvfrom");
-			}
-			else
-			{
-				/* Wait for message from client */
-				if (sendto(udp_server_fd, msg, MSG_SIZE, MSG_DONTWAIT,
-					(struct sockaddr *)&client, client_size) == -1)
-				{
-					perror("sendto");
-				}
-				else
-					sem_post(served_clients);
-			}
-		}
-
-		/* Mark entry in 'tcp_clients_q' and thread as free */
-		memset(&client, NULL, sizeof(client));
-		udp_clients_q[index].client = client;
-		pthread_mutex_unlock(&(udp_clients_q[index].client_mutex));
-		sem_trywait(udp_busy_threads);
 	}
+	while ((busy_udp_threads_sem = sem_open(SERVER_UDP_BUSY_THREADS_SEM_NAME, O_RDWR)) == SEM_FAILED)
+	{
+		if (errno != ENOENT)
+		{
+			printf("busy_tcp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+    while ((clients_count_sem = sem_open(SERVER_SERVED_UDP_CLIENTS_SEM_NAME, O_RDWR)) == SEM_FAILED)
+	{
+		if (errno != ENOENT)
+		{
+			printf("tcp clients_count_sem sem_open: %s (%d)\n", strerror(errno), errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	server.sin_family = AF_INET;
+	if (inet_pton(AF_INET, SERVER_ADDR, &server.sin_addr) == -1)
+	{
+        printf("inet_pton: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+	}
+	server.sin_port = 0;
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd <= 0)
+	{
+		printf("socket: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+	}
+	if (bind(fd, (struct sockaddr *)&server, sizeof(server)) == -1)
+	{
+        printf("bind: %s(%d)\n", strerror(errno), errno);
+		exit(EXIT_FAILURE);
+	}
+
+    sem_post(free_udp_threads_sem);
+
+    while(1)
+    {
+		if (mq_receive(udp_endpoints_q, &endpoint, SERVER_UDP_Q_MSGSIZE, NULL) == -1) // sendto after this
+        {
+			printf("udp mq_receive: %s (%d)\n", strerror(errno), errno);
+            continue;
+        }
+
+		strncpy(msg, SERVER_MSG, CLIENT_MSG_SIZE);
+		if (sendto(fd, msg, SERVER_MSG_SIZE, NULL, &endpoint, sizeof(endpoint)) == -1)
+		{
+			printf("udp sendto: %s (%d)\n", strerror(errno), errno);
+			return;
+		}
+
+        sem_wait(free_udp_threads_sem);
+        sem_post(busy_udp_threads_sem);
+
+        pthread_mutex_lock(&udp_threads_mutex);
+        pthread_mutex_unlock(&udp_threads_mutex);
+
+        pthread_mutex_lock(&udp_threads[thread_id].mutex);
+        udp_threads[thread_id].client_endp = endpoint;
+        pthread_mutex_unlock(&udp_threads[thread_id].mutex);
+
+        do
+        {
+			struct sockaddr_in tmp;
+            int tmp_size = sizeof(tmp);
+            if (recvfrom(fd, msg, SERVER_MSG_SIZE, NULL, &tmp, &tmp_size) == -1)
+            {
+                printf("udp recvfrom: %s (%d)\n", strerror(errno), errno);
+                break;
+            }
+
+            if (tmp.sin_port != endpoint.sin_port || memcmp(&tmp.sin_addr, &endpoint.sin_addr, sizeof(struct in_addr)) != 0)
+            {
+                puts("Incorrect endpoint");
+                break;
+            }
+
+            strncpy(msg, SERVER_MSG, CLIENT_MSG_SIZE);
+            if (sendto(fd, msg, CLIENT_MSG_SIZE, NULL, &endpoint, sizeof(endpoint)) == -1)
+            {
+                printf("udp sendto: %s (%d)\n", strerror(errno), errno);
+                break;
+            }
+        } while (CLIENT_MODE);
+
+        sem_wait(busy_udp_threads_sem);
+        sem_post(free_udp_threads_sem);
+
+        pthread_mutex_lock(&udp_threads_mutex);
+        pthread_mutex_unlock(&udp_threads_mutex);
+
+        pthread_mutex_lock(&udp_threads[thread_id].mutex);
+		memset(&udp_threads[thread_id].client_endp, 0, sizeof(udp_threads[thread_id].client_endp));
+        pthread_mutex_unlock(&udp_threads[thread_id].mutex);
+
+        sem_post(clients_count_sem);
+
+		printf("UDP #%d: post client to counter\n", thread_id);
+    }
+	
+    mq_close(udp_endpoints_q);
+
+	return;
 }
 
-int multiproto_server(void)
+int multiproto_server()
 {
 	puts("Multiprotocol server");
 
-	/*
-    * Declare:
-	* - sa - sigaction, used to redefine signal handler for SIGINT;
-    * - rlim - structure, storing soft and hard limits for maximum number of
-    *   file descriptors;
-	* - tcp_server & udp_server & client - endpoints of server and client;
-	* - client_fd - fd of TCP server's client;
-	* - client_size - size of client's endpoint;
-	* - sem_value - value in semaphores;
-	* - index & sec_index - index variables;
-    * - tmp_tid - pointer, used to temporary store pointer to reallocated
-    *   'tcp_tids' & 'udp_tids' arrays;
-	* - tmp_clq - pointer, used to temporary store pointer to reallocated
-    *   'tcp_clients_q' & 'udp_clients_q' queues.
-    */
-	struct sigaction sa;
 	struct rlimit rlim;
-	struct sockaddr_in tcp_server;
-	struct sockaddr_in udp_server;
-	struct sockaddr_in client;
-	int client_fd;
-	int client_size;
-	int sem_value = 0;
-	int ret;
-	int index;
-	int sec_index;
-	pthread_t *tmp_tid;
-	struct tcp_client_t *tmp_clq;
+	struct pollfd pfds[2];
+    struct sockaddr_in tcp_server_addr;
+	struct sockaddr_in udp_server_addr;
+    int tmp_fd = 0;
+    struct sockaddr_in client;
+    int client_size;
+	char msg[SERVER_MSG_SIZE];
 
-	/* Allocate memory to 'tcp_tids' and 'tcp_clients_q' */
-	tcp_tids = malloc(tcp_alloc_threads * sizeof(pthread_t));
-	udp_tids = malloc(udp_alloc_threads * sizeof(pthread_t));
-	tcp_clients_q = malloc(tcp_alloc_clients * sizeof(struct tcp_client_t));
-	udp_clients_q = malloc(udp_alloc_clients * sizeof(struct tcp_client_t));
-	pfds = malloc(2 * sizeof(struct pollfd));
+    struct sigaction sa;
 
-	/* Init 'tcp_clients_q' & 'udp_clients_q' queue entries */
-	for (index = 0; index < tcp_alloc_clients; ++index)
-	{
-		// printf("initing %dth tcp_clients_q\n", index);
-		tcp_clients_q[index].client_fd = NULL;
-		pthread_mutex_init(&(tcp_clients_q[index].client_mutex), NULL);
-	}
-	for (index = 0; index < udp_alloc_clients; ++index)
-	{
-		// printf("initing %dth udp_clients_q\n", index);
-		//  udp_clients_q[index].client = NULL;
-		memset(&udp_clients_q[index].client, NULL, sizeof(udp_clients_q[index].client));
-		pthread_mutex_init(&(udp_clients_q[index].client_mutex), NULL);
-	}
+    int sem_value = 0;
+
+    mqd_t tcp_fds_q;
+	mqd_t udp_endpoints_q;
+    struct mq_attr tcp_attr;
+	struct mq_attr udp_attr;
+
+    int index;
+    int ret = 0;
 
 	/* Print current rlimit, set new one */
     if (getrlimit(RLIMIT_NOFILE, &rlim) == -1)
     {
-        perror("getrlimit");
+        printf("getrlimit: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
-    printf("Current maximum file descriptor: %ld / %ld\n", rlim.rlim_cur,
-			rlim.rlim_max);
+    printf("Current maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, rlim.rlim_max);
     rlim.rlim_cur = rlim.rlim_max;
-    printf("New maximum file descriptor: %ld / %ld\n", rlim.rlim_cur,
-			rlim.rlim_max);
+    printf("New maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, rlim.rlim_max);
     if (setrlimit(RLIMIT_NOFILE, &rlim) == -1)
     {
-        perror("setrlimit");
+        printf("setrlimit: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
 
-	/*
-	* Create 'tcp_clients_counter', 'udp_clients_counter', 'tcp_busy_threads', 'udp_busy_threads' and 'served_clients' semaphores.
-	*/
-	tcp_clients_counter = sem_open(SERVER_TCP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666,
-								0);
-    if (tcp_clients_counter == SEM_FAILED)
+    sigemptyset(&sa.sa_mask);
+    sa.sa_sigaction = sigint_handler;
+    if (sigaction(SIGINT, &sa, NULL) == -1)
     {
-        perror("sem_open tcp_clients_counter");
-        exit(EXIT_FAILURE);
-    }
-	udp_clients_counter = sem_open(SERVER_UDP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666,
-								0);
-    if (udp_clients_counter == SEM_FAILED)
-    {
-        perror("sem_open udp_clients_counter");
-        exit(EXIT_FAILURE);
-    }
-	tcp_busy_threads = sem_open(SERVER_TCP_BUSY_THREADS_SEM_NAME, O_CREAT | O_RDWR,
-							0666, 0);
-    if (tcp_busy_threads == SEM_FAILED)
-    {
-        perror("sem_open tcp_busy_threads");
-        exit(EXIT_FAILURE);
-    }
-	udp_busy_threads = sem_open(SERVER_UDP_BUSY_THREADS_SEM_NAME, O_CREAT | O_RDWR,
-							0666, 0);
-    if (udp_busy_threads == SEM_FAILED)
-    {
-        perror("sem_open tcp_busy_threads");
-        exit(EXIT_FAILURE);
-    }
-	served_clients = sem_open(SERVER_SERVED_CLIENTS_SEM_NAME, O_CREAT | O_RDWR,
-								0666, 0);
-    if (served_clients == SEM_FAILED)
-    {
-        perror("sem_open served_clients");
+		printf("sigaction: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
 
-	/* Reset these semaphores */
-	sem_getvalue(tcp_clients_counter, &sem_value);
-	while (sem_value > 0)
-	{
-		sem_trywait(tcp_clients_counter);
-		sem_getvalue(tcp_clients_counter, &sem_value);
-	}
-	sem_getvalue(udp_clients_counter, &sem_value);
-	while (sem_value > 0)
-	{
-		sem_trywait(udp_clients_counter);
-		sem_getvalue(udp_clients_counter, &sem_value);
-	}
-	sem_getvalue(tcp_busy_threads, &sem_value);
-	while (sem_value > 0)
-	{
-		sem_trywait(tcp_busy_threads);
-		sem_getvalue(tcp_busy_threads, &sem_value);
-	}
-	sem_getvalue(udp_busy_threads, &sem_value);
-	while (sem_value > 0)
-	{
-		sem_trywait(udp_busy_threads);
-		sem_getvalue(udp_busy_threads, &sem_value);
-	}
-	sem_getvalue(served_clients, &sem_value);
-	while (sem_value > 0)
-	{
-		sem_trywait(served_clients);
-		sem_getvalue(served_clients, &sem_value);
-	}
+    if (atexit(shutdown_server) != 0)
+    {
+        printf("atexit: %s (%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+    }
 
-	/* Create threads */
-	for (index = 0; index < tcp_alloc_threads; ++index)
+    free_tcp_threads_sem = sem_open(SERVER_TCP_FREE_THREADS_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+	if (free_tcp_threads_sem == SEM_FAILED)
 	{
-		pthread_create(&tcp_tids[index], NULL, tcp_server_thread, NULL);
-	}
-	for (index = 0; index < udp_alloc_threads; ++index)
-	{
-		pthread_create(&udp_tids[index], NULL, udp_server_thread, NULL);
-	}
-
-	/* Fill 'tcp_server' & 'udp_server' with 0's */
-	memset(&tcp_server, 0, sizeof(tcp_server));
-	memset(&udp_server, 0, sizeof(udp_server));
-
-	/* Set server's endpoints */
-	tcp_server.sin_family = AF_INET;
-	if (inet_pton(AF_INET, SERVER_ADDR, &tcp_server.sin_addr) == -1)
-	{
-		perror("inet_pton tcp_server");
+		printf("free_tcp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
 		exit(EXIT_FAILURE);
 	}
-	tcp_server.sin_port = SERVER_TCP_PORT;
-
-	udp_server.sin_family = AF_INET;
-	if (inet_pton(AF_INET, SERVER_ADDR, &udp_server.sin_addr) == -1)
+	free_udp_threads_sem = sem_open(SERVER_UDP_FREE_THREADS_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+	if (free_udp_threads_sem == SEM_FAILED)
 	{
-		perror("inet_pton udp_server");
+		printf("free_udp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
 		exit(EXIT_FAILURE);
 	}
-	udp_server.sin_port = SERVER_UDP_PORT;
 
-	/* Create sockets */
-	tcp_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+	busy_tcp_threads_sem = sem_open(SERVER_TCP_BUSY_THREADS_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+	if (busy_tcp_threads_sem == SEM_FAILED)
+	{
+		printf("busy_tcp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
+		exit(EXIT_FAILURE);
+	}
+	busy_udp_threads_sem = sem_open(SERVER_UDP_BUSY_THREADS_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+	if (busy_udp_threads_sem == SEM_FAILED)
+	{
+		printf("busy_udp_threads_sem sem_open: %s (%d)\n", strerror(errno), errno);
+		exit(EXIT_FAILURE);
+	}
+
+    served_tcp_clients = sem_open(SERVER_SERVED_TCP_CLIENTS_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+	if (served_tcp_clients == SEM_FAILED)
+	{
+		printf("served_tcp_clients sem_open: %s (%d)\n", strerror(errno), errno);
+		exit(EXIT_FAILURE);
+	}
+	served_udp_clients = sem_open(SERVER_SERVED_UDP_CLIENTS_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+	if (served_udp_clients == SEM_FAILED)
+	{
+		printf("served_udp_clients sem_open: %s (%d)\n", strerror(errno), errno);
+		exit(EXIT_FAILURE);
+	}
+
+    sem_getvalue(free_tcp_threads_sem, &sem_value);
+	while (sem_value > 0)
+	{
+		sem_trywait(free_tcp_threads_sem);
+		sem_getvalue(free_tcp_threads_sem, &sem_value);
+	}
+    sem_getvalue(free_udp_threads_sem, &sem_value);
+	while (sem_value > 0)
+	{
+		sem_trywait(free_udp_threads_sem);
+		sem_getvalue(free_udp_threads_sem, &sem_value);
+	}
+	sem_getvalue(busy_tcp_threads_sem, &sem_value);
+	while (sem_value > 0)
+	{
+		sem_trywait(busy_tcp_threads_sem);
+		sem_getvalue(busy_tcp_threads_sem, &sem_value);
+	}
+	sem_getvalue(busy_udp_threads_sem, &sem_value);
+	while (sem_value > 0)
+	{
+		sem_trywait(busy_udp_threads_sem);
+		sem_getvalue(busy_udp_threads_sem, &sem_value);
+	}
+	sem_getvalue(served_tcp_clients, &sem_value);
+	while (sem_value > 0)
+	{
+		sem_trywait(served_tcp_clients);
+		sem_getvalue(served_tcp_clients, &sem_value);
+	}
+	sem_getvalue(served_udp_clients, &sem_value);
+	while (sem_value > 0)
+	{
+		sem_trywait(served_udp_clients);
+		sem_getvalue(served_udp_clients, &sem_value);
+	}
+
+    tcp_attr.mq_maxmsg = SERVER_Q_MAXMSG;
+	tcp_attr.mq_msgsize = SERVER_TCP_Q_MSGSIZE;
+
+	udp_attr.mq_maxmsg = SERVER_Q_MAXMSG;
+	udp_attr.mq_msgsize = SERVER_UDP_Q_MSGSIZE;
+
+    tcp_fds_q = mq_open(SERVER_TCP_QUEUE_NAME, O_CREAT | O_RDWR, 0666, &tcp_attr);
+    if (tcp_fds_q == -1)
+    {
+		printf("tcp_fds_q mq_open: %s (%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+    }
+
+	udp_endpoints_q = mq_open(SERVER_UDP_QUEUE_NAME, O_CREAT | O_RDWR, 0666, &udp_attr);
+    if (udp_endpoints_q == -1)
+    {
+		printf("udp_endpoints_q mq_open: %s (%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+    }
+
+    pthread_mutex_lock(&tcp_threads_mutex);
+    tcp_threads_count = SERVER_DEF_ALLOC;
+    tcp_threads = malloc(tcp_threads_count * sizeof(struct tcp_server_thread_t));
+    if (tcp_threads == NULL)
+    {
+        printf("malloc: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+    }
+
+    for (index = 0; index < tcp_threads_count; index++)
+    {
+        tcp_threads[index].tid = NULL;
+        pthread_create(&tcp_threads[index].tid, NULL, _tcp_server_thread, index);
+        tcp_threads[index].client_fd = 0;
+        pthread_mutex_init(&tcp_threads[index].mutex, NULL);
+    }
+    pthread_mutex_unlock(&tcp_threads_mutex);
+
+	pthread_mutex_lock(&udp_threads_mutex);
+    udp_threads_count = SERVER_DEF_ALLOC;
+    udp_threads = malloc(udp_threads_count * sizeof(struct udp_server_thread_t));
+    if (udp_threads == NULL)
+    {
+        printf("malloc: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+    }
+
+    for (index = 0; index < udp_threads_count; index++)
+    {
+        udp_threads[index].tid = NULL;
+        pthread_create(&udp_threads[index].tid, NULL, _udp_server_thread, index);
+		memset(&udp_threads[index].client_endp, 0, sizeof(udp_threads[index].client_endp));
+        pthread_mutex_init(&udp_threads[index].mutex, NULL);
+    }
+    pthread_mutex_unlock(&udp_threads_mutex);
+
+    /* Fill 'tcp_server_addr' and 'udp_server_addr' with 0's */
+	memset(&tcp_server_addr, 0, sizeof(tcp_server_addr));
+	memset(&udp_server_addr, 0, sizeof(udp_server_addr));
+
+	/* Set tcp_server_addr's endpoint */
+	tcp_server_addr.sin_family = AF_INET;
+	if (inet_pton(AF_INET, SERVER_ADDR, &tcp_server_addr.sin_addr) == -1)
+	{
+        printf("inet_pton: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+	}
+	tcp_server_addr.sin_port = htons(SERVER_TCP_PORT);
+
+	udp_server_addr.sin_family = AF_INET;
+	if (inet_pton(AF_INET, SERVER_ADDR, &udp_server_addr.sin_addr) == -1)
+	{
+        printf("inet_pton: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+	}
+	udp_server_addr.sin_port = htons(SERVER_UDP_PORT);
+
+    tcp_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (tcp_server_fd <= 0)
+	{
+		printf("socket: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+	}
+
 	udp_server_fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (udp_server_fd <= 0)
+	{
+		printf("socket: %s(%d)\n", strerror(errno), errno);
+        exit(EXIT_FAILURE);
+	}
 
-	/* Allow reuse of local address in sockets */
-	setsockopt(tcp_server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 	setsockopt(udp_server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+	setsockopt(tcp_server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
-	/* Assign addresses to sockets */
-	if (bind(tcp_server_fd, (struct sockaddr *)&tcp_server, sizeof(tcp_server)) == -1)
+    if (bind(tcp_server_fd, (struct sockaddr *)&tcp_server_addr, sizeof(tcp_server_addr)) == -1)
 	{
-		perror("bind tcp_server");
-		exit(EXIT_FAILURE);
-	}
-	if (bind(udp_server_fd, (struct sockaddr *)&udp_server, sizeof(udp_server)) == -1)
-	{
-		perror("bind udp_server");
+        printf("bind: %s(%d)\n", strerror(errno), errno);
 		exit(EXIT_FAILURE);
 	}
 
-	/*
-	* TCP protocol only function, mark 'tcp_server_fd' socket as passive
-	* socket.
-	*/
-	if (listen(tcp_server_fd, SERVER_LISTEN_BACKLOG) == -1)
+	if (bind(udp_server_fd, (struct sockaddr *)&udp_server_addr, sizeof(udp_server_addr)) == -1)
 	{
-		perror("listen");
+        printf("bind: %s(%d)\n", strerror(errno), errno);
+		exit(EXIT_FAILURE);
+	}
+
+    if (listen(tcp_server_fd, SERVER_LISTEN_BACKLOG) == -1)
+	{
+        printf("listen: %s(%d)\n", strerror(errno), errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -424,193 +588,121 @@ int multiproto_server(void)
 	pfds[0].events = POLLIN;
 	pfds[1].events = POLLIN;
 
-	/* Fill sa_mask, set signal handler, redefine SIGINT with sa */
-    sigfillset(&sa.sa_mask);
-    sa.sa_sigaction = sigint_handler;
-    if (sigaction(SIGINT, &sa, NULL) == -1)
+    while(1)
     {
-        perror("sigaction");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Set atexit function */
-	atexit(shutdown_server);
-
-	while(1)
-	{
 		int ret = poll(pfds, 2, 0);
 		if (ret > 0)
 		{
 			if (pfds[0].revents & POLLIN)
 			{
-				/*
-				* TCP protocol only function, await connection and get client's
-				* endpoint and fd.
-				*/
 				client_size = sizeof(client);
-				if ((client_fd = accept(tcp_server_fd, (struct sockaddr *)&client,
+				if ((tmp_fd = accept(tcp_server_fd, (struct sockaddr *)&client,
 										&client_size)) == -1)
 				{
-					perror("accept");
+					printf("tcp accept: %s(%d)\n", strerror(errno), errno);
 					exit(EXIT_FAILURE);
 				}
 
-				/* Write free client_fd entry with new client's fd */
-				for (index = 0; index < tcp_alloc_clients; ++index)
+				while(sem_getvalue(free_tcp_threads_sem, &sem_value) != -1 && sem_value == 0)
 				{
-					if (tcp_clients_q[index].client_fd == NULL)
+					if (sem_getvalue(busy_tcp_threads_sem, &sem_value) != -1 && sem_value == tcp_threads_count)
 					{
-						tcp_clients_q[index].client_fd = client_fd;
+						struct tcp_server_thread_t *tmp;
+
+						pthread_mutex_lock(&tcp_threads_mutex);
+						tmp = realloc(tcp_threads, (tcp_threads_count+SERVER_DEF_ALLOC) * sizeof(struct tcp_server_thread_t));
+						if (tmp == NULL)
+						{
+							printf("tcp realloc: %s (%d)\n", strerror(errno), errno);
+							exit(EXIT_FAILURE);
+						}
+
+						tcp_threads = tmp;
+
+						for (index = tcp_threads_count; index < (tcp_threads_count+SERVER_DEF_ALLOC); index++)
+						{
+							tcp_threads[index].tid = NULL;
+							pthread_create(&tcp_threads[index].tid, NULL, _tcp_server_thread, index);
+							tcp_threads[index].client_fd = 0;
+							pthread_mutex_init(&tcp_threads[index].mutex, NULL);
+						}
+
+						tcp_threads_count += SERVER_DEF_ALLOC;
+						pthread_mutex_unlock(&tcp_threads_mutex);
+
+						tmp = NULL;
+
 						break;
 					}
 				}
 
-				/* If there is no free entries in queue -> allocate more memory */
-				if (index == tcp_alloc_clients)
+				while (mq_send(tcp_fds_q, &tmp_fd, SERVER_TCP_Q_MSGSIZE, NULL) == -1)
 				{
-					printf("reallocating clients from %d to %d\n", tcp_alloc_clients,
-							tcp_alloc_clients+SERVER_DEF_ALLOC);
-					tcp_alloc_clients += SERVER_DEF_ALLOC;
-					tmp_clq = realloc(tcp_clients_q,
-										(tcp_alloc_clients*sizeof(struct tcp_client_t)));
-					if (tmp_clq == NULL)
+					if (errno != EAGAIN)
 					{
-						perror("realloc");
-						break;
-					}
-					else
-						tcp_clients_q  = tmp_clq;
-
-					for (sec_index = tcp_alloc_clients-1; 
-							sec_index >= tcp_alloc_clients-SERVER_DEF_ALLOC; --sec_index)
-					{
-						printf("initing %dth tcp_clients_q(%ld addr)\n", sec_index, 
-								&tcp_clients_q[sec_index]);
-						tcp_clients_q[tcp_alloc_clients-sec_index].client_fd = NULL;
-						pthread_mutex_init(&(tcp_clients_q[tcp_alloc_clients-sec_index].
-												client_mutex), NULL);
+						printf("tcp mq_send: %s (%d)\n", strerror(errno), errno);
+						exit(EXIT_FAILURE);
 					}
 				}
 
-				/* Get clients count */
-				if (sem_getvalue(tcp_busy_threads, &sem_value) == -1)
-				{
-					perror("sem_getvalue");
-					break;
-				}
-
-				/*
-				* If number of threads, busy with processing clients is almost equal to
-				* total number of created threads -> create more threads.
-				*/
-				if (sem_value > (tcp_alloc_threads - SERVER_DEF_ALLOC))
-				{
-					printf("reallocating threads from %d to %d\n", tcp_alloc_threads,
-							tcp_alloc_threads+SERVER_DEF_ALLOC);
-					tcp_alloc_threads += SERVER_DEF_ALLOC;
-					tmp_tid = realloc(tcp_tids, (tcp_alloc_threads*sizeof(pthread_t)));
-					if (tmp_tid == NULL)
-					{
-						perror("realloc");
-						break;
-					}
-					tcp_tids  = tmp_tid;
-
-					for (index = 0; index < SERVER_DEF_ALLOC; ++index)
-					{
-						pthread_create(&tcp_tids[index+(tcp_alloc_threads-SERVER_DEF_ALLOC)], NULL, tcp_server_thread, NULL);
-					}
-				}
-				/*
-				* Increment semaphore, so only one thread is allowed
-				* to begin processing client.
-				*/
-				sem_post(tcp_clients_counter);
-				if (ret == 1)
-					continue;
+				pfds[0].revents = 0;
 			}
 			if (pfds[1].revents & POLLIN)
 			{
 				client_size = sizeof(client);
-				recvfrom(udp_server_fd, NULL, NULL, 0, (struct sockaddr *)&client, &client_size);
-
-				/* Write free client_fd entry with new client's fd */
-				for (index = 0; index < udp_alloc_clients; ++index)
+				if (recvfrom(udp_server_fd, msg, SERVER_MSG_SIZE, 0, (struct sockaddr *)&client, &client_size) == -1)
 				{
-					if (udp_clients_q[index].client.sin_zero == NULL)
+					printf("udp recvfrom: %s(%d)\n", strerror(errno), errno);
+					exit(EXIT_FAILURE);
+				}
+				while(sem_getvalue(free_udp_threads_sem, &sem_value) != -1 && sem_value == 0)
+				{
+					if (sem_getvalue(busy_udp_threads_sem, &sem_value) != -1 && sem_value == udp_threads_count)
 					{
-						udp_clients_q[index].client = client;
+						struct tcp_server_thread_t *tmp;
+
+						pthread_mutex_lock(&udp_threads_mutex);
+						tmp = realloc(udp_threads, (udp_threads_count+SERVER_DEF_ALLOC) * sizeof(struct tcp_server_thread_t));
+						if (tmp == NULL)
+						{
+							printf("udp realloc: %s (%d)\n", strerror(errno), errno);
+							exit(EXIT_FAILURE);
+						}
+						udp_threads = tmp;
+
+						for (index = udp_threads_count; index < (udp_threads_count+SERVER_DEF_ALLOC); index++)
+						{
+							udp_threads[index].tid = NULL;
+							pthread_create(&udp_threads[index].tid, NULL, _udp_server_thread, index);
+							memset(&udp_threads[index].client_endp, 0, sizeof(udp_threads[index].client_endp));
+							pthread_mutex_init(&udp_threads[index].mutex, NULL);
+						}
+
+						udp_threads_count += SERVER_DEF_ALLOC;
+						pthread_mutex_unlock(&tcp_threads_mutex);
+
+						tmp = NULL;
+
 						break;
 					}
 				}
 
-				/* If there is no free entries in queue -> allocate more memory */
-				if (index == udp_alloc_clients)
+				while (mq_send(udp_endpoints_q, &client, SERVER_UDP_Q_MSGSIZE, NULL) == -1)
 				{
-					printf("reallocating clients from %d to %d\n", udp_alloc_clients,
-							udp_alloc_clients+SERVER_DEF_ALLOC);
-					udp_alloc_clients += SERVER_DEF_ALLOC;
-					tmp_clq = realloc(udp_clients_q,
-										(udp_alloc_clients*sizeof(struct udp_client_t)));
-					if (tmp_clq == NULL)
+					if (errno != EAGAIN)
 					{
-						perror("realloc");
-						break;
-					}
-					else
-						udp_clients_q  = tmp_clq;
-
-					for (sec_index = udp_alloc_clients-1; 
-							sec_index >= udp_alloc_clients-SERVER_DEF_ALLOC; --sec_index)
-					{
-						printf("initing %dth udp_clients_q(%ld addr)\n", sec_index, 
-								&udp_clients_q[sec_index]);
-						// udp_clients_q[udp_alloc_clients-sec_index].client = NULL;
-						memset(&udp_clients_q[udp_alloc_clients-sec_index].client, NULL, sizeof(udp_clients_q[udp_alloc_clients-sec_index].client));
-						pthread_mutex_init(&(udp_clients_q[udp_alloc_clients-sec_index].
-												client_mutex), NULL);
+						printf("udp mq_send: %s (%d)\n", strerror(errno), errno);
+						exit(EXIT_FAILURE);
 					}
 				}
 
-				/* Get clients count */
-				if (sem_getvalue(udp_busy_threads, &sem_value) == -1)
-				{
-					perror("sem_getvalue");
-					break;
-				}
-
-				/*
-				* If number of threads, busy with processing clients is almost equal to
-				* total number of created threads -> create more threads.
-				*/
-				if (sem_value > (udp_alloc_threads - SERVER_DEF_ALLOC))
-				{
-					printf("reallocating threads from %d to %d\n", udp_alloc_threads,
-							udp_alloc_threads+SERVER_DEF_ALLOC);
-					udp_alloc_threads += SERVER_DEF_ALLOC;
-					tmp_tid = realloc(udp_tids, (udp_alloc_threads*sizeof(pthread_t)));
-					if (tmp_tid == NULL)
-					{
-						perror("realloc");
-						break;
-					}
-					udp_tids  = tmp_tid;
-
-					for (index = 0; index < SERVER_DEF_ALLOC; ++index)
-					{
-						pthread_create(&udp_tids[index+(udp_alloc_threads-SERVER_DEF_ALLOC)], NULL, udp_server_thread, NULL);
-					}
-				}
-				/*
-				* Increment semaphore, so only one thread is allowed
-				* to begin processing client.
-				*/
-				sem_post(udp_clients_counter);
-				if (ret == 1)
-					continue;
+				pfds[1].revents = 0;
 			}
 		}
-	}
+    }
 
-	return EXIT_SUCCESS;
+    mq_close(tcp_fds_q);
+	mq_close(udp_endpoints_q);
+
+    return ret;
 }

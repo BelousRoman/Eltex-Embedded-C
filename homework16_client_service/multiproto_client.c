@@ -2,7 +2,7 @@
 
 int main(void)
 {
-    client();
+    multiproto_client();
 	
 	exit(EXIT_SUCCESS);
 }

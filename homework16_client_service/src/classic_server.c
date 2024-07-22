@@ -38,9 +38,9 @@ void shutdown_server(void)
     sem_close(clients_counter);
 	sem_close(busy_threads);
 	sem_close(served_clients);
-	unlink(SERVER_TCP_COUNTER_SEM_NAME);
+	unlink(SERVER_SERVED_TCP_CLIENTS_SEM_NAME);
 	unlink(SERVER_TCP_BUSY_THREADS_SEM_NAME);
-	unlink(SERVER_SERVED_CLIENTS_SEM_NAME);
+	unlink(SERVER_SERVED_TCP_CLIENTS_SEM_NAME);
 
 	/* Free allocated memory */
 	if (tid != NULL)
@@ -128,7 +128,7 @@ void *tcp_server_thread(void *args)
 	}
 }
 
-int multiproto_server(void)
+int classic_server(void)
 {
 	puts("Classic server");
 
@@ -191,7 +191,7 @@ int multiproto_server(void)
 	/*
 	* Create 'clients_counter', 'busy_threads' and 'served_clients' semaphores.
 	*/
-	clients_counter = sem_open(SERVER_TCP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666,
+	clients_counter = sem_open(SERVER_SERVED_TCP_CLIENTS_SEM_NAME, O_CREAT | O_RDWR, 0666,
 								0);
     if (clients_counter == SEM_FAILED)
     {
@@ -205,7 +205,7 @@ int multiproto_server(void)
         perror("sem_open busy_threads");
         exit(EXIT_FAILURE);
     }
-	served_clients = sem_open(SERVER_SERVED_CLIENTS_SEM_NAME, O_CREAT | O_RDWR,
+	served_clients = sem_open(SERVER_SERVED_TCP_CLIENTS_SEM_NAME, O_CREAT | O_RDWR,
 								0666, 0);
     if (served_clients == SEM_FAILED)
     {

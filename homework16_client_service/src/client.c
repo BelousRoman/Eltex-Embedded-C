@@ -134,7 +134,7 @@ int client(void)
     }
 
     /* Create 'counter_sem' semaphore to store number of served clients */
-    counter_sem = sem_open(CLIENT_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+    counter_sem = sem_open(CLIENT_TCP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
     if (counter_sem == SEM_FAILED)
     {
         perror("sem_open");
@@ -193,7 +193,7 @@ int client(void)
     /* Get clients count */
     sem_getvalue(counter_sem, &clients_count);
     sem_close(counter_sem);
-    unlink(CLIENT_COUNTER_SEM_NAME);
+    unlink(CLIENT_TCP_COUNTER_SEM_NAME);
 
 	printf("Shut clients at:\n* %d client,\n* %d threads created\n",
             clients_count, threads_count);

@@ -23,24 +23,42 @@
 #include <sys/resource.h>
 #include <malloc.h>
 #include <sys/poll.h>
+#include <mqueue.h>
 
-#define MSG_SIZE                            256
+#define MSG_SIZE                            10
 
 #define SERVER_ADDR                         "127.0.0.1"
 #define SERVER_TCP_PORT                     9875
 #define SERVER_UDP_PORT                     9876
-#define SERVER_LISTEN_BACKLOG               100
-#define SERVER_DEF_ALLOC                    1000
-#define SERVER_MSG                          "Server_msg"
-#define SERVER_TCP_COUNTER_SEM_NAME         "/server_tcp_counter"
-#define SERVER_UDP_COUNTER_SEM_NAME         "/server_udp_counter"
+#define SERVER_LISTEN_BACKLOG               5
+#define SERVER_DEF_ALLOC                    5
+#define SERVER_Q_MAXMSG                     5
+#define SERVER_TCP_Q_MSGSIZE                sizeof(int)
+#define SERVER_UDP_Q_MSGSIZE                sizeof(struct sockaddr_in)
+#define SERVER_MSG_SIZE                     MSG_SIZE
+#define SERVER_MSG                          "Message"
+#define SERVER_TCP_QUEUE_NAME               "/tcp_server_fds"
+#define SERVER_UDP_QUEUE_NAME               "/udp_server_endpoints"
+#define SERVER_TCP_FREE_THREADS_SEM_NAME    "/free_tcp_threads"
+#define SERVER_UDP_FREE_THREADS_SEM_NAME    "/free_udp_threads"
 #define SERVER_TCP_BUSY_THREADS_SEM_NAME    "/busy_tcp_threads"
 #define SERVER_UDP_BUSY_THREADS_SEM_NAME    "/busy_udp_threads"
-#define SERVER_SERVED_CLIENTS_SEM_NAME      "/served_clients"
+#define SERVER_SERVED_TCP_CLIENTS_SEM_NAME  "/served_tcp_clients"
+#define SERVER_SERVED_UDP_CLIENTS_SEM_NAME  "/served_udp_clients"
 
-#define CLIENT_DEF_ALLOC                    100
-#define CLIENT_MSG                          "Client_msg"
-#define CLIENT_COUNTER_SEM_NAME             "/client_counter"
+#define CLIENT_DEF_ALLOC                    5
+#define CLIENT_MSG_SIZE                     MSG_SIZE
+#define CLIENT_MSG                          "Message"
+#define CLIENT_TCP_COUNTER_SEM_NAME         "/client_tcp_counter"
+#define CLIENT_UDP_COUNTER_SEM_NAME         "/client_udp_counter"
+
+#define CLIENT_MODE                         TERMINATING
+
+enum
+{
+    TERMINATING = 0,
+    CONTINIOUS = 1
+};
 
 struct tcp_client_t {
     int client_fd;
@@ -48,8 +66,22 @@ struct tcp_client_t {
 };
 
 struct udp_client_t {
-    struct sockaddr_in client;
+    struct sockaddr_in client_endp;
     pthread_mutex_t client_mutex;
+};
+
+struct tcp_server_thread_t
+{
+    pthread_t tid;
+    int client_fd;
+    pthread_mutex_t mutex;
+};
+
+struct udp_server_thread_t
+{
+    pthread_t tid;
+    struct sockaddr_in client_endp;
+    pthread_mutex_t mutex;
 };
 
 /**
