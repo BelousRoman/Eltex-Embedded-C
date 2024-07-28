@@ -54,7 +54,7 @@
 
 #define CLIENT_MODE                         TERMINATING
 
-enum
+enum client_modes
 {
     TERMINATING = 0,
     CONTINIOUS = 1
@@ -62,11 +62,6 @@ enum
 
 struct tcp_client_t {
     int client_fd;
-    pthread_mutex_t client_mutex;
-};
-
-struct udp_client_t {
-    struct sockaddr_in client_endp;
     pthread_mutex_t client_mutex;
 };
 

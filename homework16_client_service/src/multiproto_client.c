@@ -3,14 +3,12 @@
 /*
 * Declare global variables:
 * - tcp_tids & udp_tids - dynamic arrays of thread ids;
-* - create_flag - flag for the main thread to continue creating threads;
-* - tcp_alloc_threads & udp_alloc_threads - currently allocated elements in 'tcp_tids' and 'udp_tids' arrays;
+* - tcp_alloc_threads & udp_alloc_threads - currently allocated elements in 
+*   'tcp_tids' and 'udp_tids' arrays;
 * - tcp_threads_count & udp_threads_count - number of created threads;
-* - tcp_counter_sem - semaphore to store number of clients, served by server;
-* - tcp_clients_count - variable, passed to sem_getvalue()
-*   to get number of clients, served by server.
+* - tcp_counter_sem & udp_counter_sem - semaphores to store number of clients, 
+*   served by server;
 */
-// int create_flag = 1;
 pthread_t *tcp_tids = NULL;
 pthread_t *udp_tids = NULL;
 int tcp_alloc_threads = CLIENT_DEF_ALLOC;
@@ -20,18 +18,20 @@ unsigned int udp_threads_count = 0;
 sem_t * tcp_counter_sem = NULL;
 sem_t * udp_counter_sem = NULL;
 
-/* handler function for SIGINT signal */
+/* Handler function for SIGINT signal */
 static void sigint_handler(int sig, siginfo_t *si, void *unused)
 {
     exit(EXIT_SUCCESS);
 }
 
+/* Atexit function */
 void shutdown_client(void)
 {
 	int tcp_clients_count = 0;
 	int udp_clients_count = 0;
 	int index;
 
+    /* Cancel every created thread, free memory */
     if (tcp_tids != NULL)
     {
         for (index = 0; index < tcp_threads_count; index++)
@@ -40,7 +40,6 @@ void shutdown_client(void)
         }
         free(tcp_tids);
     }
-
 	if (udp_tids != NULL)
     {
         for (index = 0; index < udp_threads_count; index++)
@@ -50,26 +49,30 @@ void shutdown_client(void)
         free(udp_tids);
     }
 
+    /* Get number of served clients */
     if (tcp_counter_sem != NULL)
 		sem_getvalue(tcp_counter_sem, &tcp_clients_count);
 	if (udp_counter_sem != NULL)
 		sem_getvalue(udp_counter_sem, &udp_clients_count);
 
+    /* Close semaphore fds, delete files */
     sem_close(tcp_counter_sem);
     sem_close(udp_counter_sem);
     unlink(CLIENT_TCP_COUNTER_SEM_NAME);
     unlink(CLIENT_UDP_COUNTER_SEM_NAME);
 
-    printf("Shut clients at:\n* %d client (%d by TCP and %d by UDP)\n", (tcp_clients_count+udp_clients_count), tcp_clients_count, udp_clients_count);
+    printf("Shut clients at:\n* %d client (%d by TCP and %d by UDP)\n", 
+            (tcp_clients_count+udp_clients_count), tcp_clients_count, 
+                udp_clients_count);
 }
 
 /* TCP Client thread function */
 void *tcp_client(void *args)
 {
     /*
-    * Declare global variable:
+    * Declare variable:
     * - server - server's endpoint;
-    * - server_fd - fd of server socket;
+    * - server_fd - fd of client socket;
     * - msg - message buffer.
     */
     struct sockaddr_in server;
@@ -131,12 +134,19 @@ void *tcp_client(void *args)
 /* UDP Client thread function */
 void *udp_client(void *args)
 {
+    /*
+    * Declare:
+    * - server - endpoint of server;
+    * - tmp_endpoint - endpoint to compare with server's endpoint;
+    * - server_size - size of endpoint structure;
+    * - server_fd - fd of client socket;
+    * - msg - char array.
+    */
     struct sockaddr_in server;
     struct sockaddr_in tmp_endpoint;
     int server_size;
     int server_fd;
     char msg[CLIENT_MSG_SIZE];
-    // char addr[INET6_ADDRSTRLEN];
 
     /* Set canceltype so thread could be canceled at any time*/
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -161,17 +171,19 @@ void *udp_client(void *args)
         exit(EXIT_FAILURE);
     }
 
-    /* Connect to server */
+    /* Send connection message to listener server */
     memset(msg, 0, CLIENT_MSG_SIZE);
-    if (sendto(server_fd, msg, CLIENT_MSG_SIZE, 0, (struct sockaddr *)&server, sizeof(server)) == -1)
+    if (sendto(server_fd, msg, CLIENT_MSG_SIZE, 0, (struct sockaddr *)&server, 
+        sizeof(server)) == -1)
     {
         printf("udp sendto: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
 
-    /* Wait for message from server */
-    server_size = sizeof(server);
-    if (recvfrom(server_fd, msg, CLIENT_MSG_SIZE, 0, (struct sockaddr *)&server, &server_size) == -1)
+    /* Wait for message from processing server, save it's endpoint */
+    server_size = sizeof(struct sockaddr_in);
+    if (recvfrom(server_fd, msg, CLIENT_MSG_SIZE, 0, 
+        (struct sockaddr *)&server, &server_size) == -1)
     {
         printf("udp recv: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
@@ -182,22 +194,30 @@ void *udp_client(void *args)
 
     do
     {
-        /* Send message to server */
+        /* Send a message to server */
         strncpy(msg, CLIENT_MSG, CLIENT_MSG_SIZE);
-        if (sendto(server_fd, msg, CLIENT_MSG_SIZE, 0, (struct sockaddr *)&server, server_size) == -1)
+        if (sendto(server_fd, msg, CLIENT_MSG_SIZE, 0, 
+            (struct sockaddr *)&server, server_size) == -1)
         {
             printf("udp sendto: %s (%d)\n", strerror(errno), errno);
             exit(EXIT_FAILURE);
         }
 
-        server_size = sizeof(tmp_endpoint);
-        if (recvfrom(server_fd, msg, CLIENT_MSG_SIZE, 0, (struct sockaddr *)&tmp_endpoint, &server_size) == -1)
+        /* Receive a message from server */
+        server_size = sizeof(struct sockaddr_in);
+        if (recvfrom(server_fd, msg, CLIENT_MSG_SIZE, 0, 
+                    (struct sockaddr *)&tmp_endpoint, &server_size) == -1)
         {
             printf("udp recvfrom: %s (%d)\n", strerror(errno), errno);
             exit(EXIT_FAILURE);
         }
 
-        if (tmp_endpoint.sin_port != server.sin_port || memcmp(&tmp_endpoint.sin_addr, &server.sin_addr, sizeof(struct in_addr)) != 0)
+        /*
+        * Compare endpoints to ensure that message delivered from same endpoint.
+        */
+        if (tmp_endpoint.sin_port != server.sin_port || 
+            memcmp(&tmp_endpoint.sin_addr, &server.sin_addr, 
+                    sizeof(struct in_addr)) != 0)
         {
             puts("Incorrect endpoint");
             exit(EXIT_FAILURE);
@@ -215,7 +235,8 @@ int multiproto_client(void)
     *   file descriptors;
     * - tmp_tid - pointer, used to temporary store pointer to reallocated
     *   'tcp_tids' array;
-    * - sa - sigaction, used to redefine signal handler for SIGINT.
+    * - sa - sigaction, used to redefine signal handler for SIGINT;
+    * - sem_value - integer value of semaphores.
     */
     struct rlimit rlim;
     pthread_t *tmp_tid;
@@ -228,16 +249,18 @@ int multiproto_client(void)
         printf("getrlimit: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
-    printf("Current maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, rlim.rlim_max);
+    printf("Current maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, 
+            rlim.rlim_max);
     rlim.rlim_cur = rlim.rlim_max;
-    printf("New maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, rlim.rlim_max);
+    printf("New maximum file descriptor: %ld / %ld\n", rlim.rlim_cur, 
+            rlim.rlim_max);
     if (setrlimit(RLIMIT_NOFILE, &rlim) == -1)
     {
         printf("setrlimit: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
 
-    /* Allocate 'tcp_tids' array */
+    /* Allocate memory to thread ids array */
     tcp_tids = malloc(tcp_alloc_threads*sizeof(pthread_t));
     if (tcp_tids == NULL)
     {
@@ -249,29 +272,29 @@ int multiproto_client(void)
         exit(EXIT_FAILURE);
     }
 
-    /* Create 'tcp_counter_sem' semaphore to store number of served clients */
-    tcp_counter_sem = sem_open(CLIENT_TCP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+    /* Create semaphores to store number of served clients */
+    tcp_counter_sem = sem_open(CLIENT_TCP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 
+                                0666, 0);
     if (tcp_counter_sem == SEM_FAILED)
     {
         printf("sem_open: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
-
-    udp_counter_sem = sem_open(CLIENT_UDP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 0666, 0);
+    udp_counter_sem = sem_open(CLIENT_UDP_COUNTER_SEM_NAME, O_CREAT | O_RDWR, 
+                                0666, 0);
     if (udp_counter_sem == SEM_FAILED)
     {
         printf("sem_open: %s (%d)\n", strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
 
-    /* Reset sem if it is not equal to 0 */
+    /* Reset semaphores if it is not equal to 0 */
     sem_getvalue(tcp_counter_sem, &sem_value);
 	while (sem_value > 0)
 	{
 		sem_trywait(tcp_counter_sem);
 		sem_getvalue(tcp_counter_sem, &sem_value);
 	}
-    /* Reset sem if it is not equal to 0 */
     sem_getvalue(udp_counter_sem, &sem_value);
 	while (sem_value > 0)
 	{
@@ -288,6 +311,7 @@ int multiproto_client(void)
         exit(EXIT_FAILURE);
     }
 
+    /* Set atexit function */
     if (atexit(shutdown_client) != 0)
     {
         printf("atexit: %s (%d)\n", strerror(errno), errno);
@@ -301,12 +325,14 @@ int multiproto_client(void)
 	while(1)
     {
         /*
-        * Allocate more memory to 'tcp_tids' array if it's limit has been reached.
+        * Allocate more memory to 'tcp_tids' array if it's limit has been 
+        * reached.
         */
         if (tcp_threads_count >= tcp_alloc_threads)
         {
             tcp_alloc_threads += CLIENT_DEF_ALLOC;
-            tmp_tid = realloc(tcp_tids, ((tcp_alloc_threads+CLIENT_DEF_ALLOC)*sizeof(pthread_t)));
+            tmp_tid = realloc(tcp_tids, ((tcp_alloc_threads+CLIENT_DEF_ALLOC)*
+                                sizeof(pthread_t)));
             if (tmp_tid == NULL)
             {
                 printf("realloc: %s (%d)\n", strerror(errno), errno);
@@ -315,11 +341,13 @@ int multiproto_client(void)
             tcp_tids = tmp_tid;
             tmp_tid = NULL;
         }
+        /* Create a thread with tcp client */
         pthread_create(&tcp_tids[tcp_threads_count], NULL, tcp_client, NULL);
         tcp_threads_count++;
 
         /*
-        * Allocate more memory to 'udp_tids' array if it's limit has been reached.
+        * Allocate more memory to 'udp_tids' array if it's limit has been 
+        * reached.
         */
         if (udp_threads_count >= udp_alloc_threads)
         {
@@ -333,6 +361,7 @@ int multiproto_client(void)
             udp_tids = tmp_tid;
             tmp_tid = NULL;
         }
+        /* Create a thread with udp client */
         pthread_create(&udp_tids[udp_threads_count], NULL, udp_client, NULL);
         udp_threads_count++;
     }
