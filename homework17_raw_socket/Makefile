@@ -1,45 +1,28 @@
-SERV_BIN := server
+SERVER_BIN := server
 CLIENT_BIN := client
 HEADERS := hdr/*.h
 SOURCES := src/*.c
 OBJECTS := client.o server.o
-CC := gcc -Wall
+CC := gcc
 CFLAGS := -g
 OFLAGS := -c
 LIBS := -pthread
 DIR_NAME := build
 
-all: create_dir $(SERV_BIN) $(CLIENT_BIN)
-	# mkdir -p ./build
-	# mv -f $(SERV_BIN) $(CLIENT_BIN) ./build
+all: dir $(SERVER_BIN) $(CLIENT_BIN)
 
-create_dir:
-	mkdir -p ./$(DIR_NAME)
+dir:
+	mkdir -p $(DIR_NAME)
 
-$(SERV_BIN): server.c src/server.c
-	$(CC) -o $(DIR_NAME)/$(SERV_BIN) server.c src/server.c $(LIBS) $(CFLAGS)
-$(SERV_BIN): $(HEADERS)
+%.o: src/%.c
+	$(CC) $(CFLAGS) -c $< -o $(DIR_NAME)/$@
+%.o: $(HEADERS)
 
-$(CLIENT_BIN): client.c src/client.c
-	$(CC) -o $(DIR_NAME)/$(CLIENT_BIN) client.c src/client.c $(LIBS) $(CFLAGS)
-$(CLIENT_BIN): $(HEADERS)
+$(SERVER_BIN): server.c server.o
+	$(CC) -o $(DIR_NAME)/$(SERVER_BIN) server.c $(DIR_NAME)/server.o $(LIBS) $(CFLAGS)
 
-# $(SERV_BIN): server.c $(OBJECTS)
-# 	$(CC) -o $(DIR_NAME)/$(SERV_BIN) server.c $(DIR_NAME)/$(OBJECTS) $(LIBS) $(CFLAGS)
-# $(SERV_BIN): $(HEADERS)
-
-# $(CLIENT_BIN): client.c $(OBJECTS)
-# 	$(CC) -o $(DIR_NAME)/$(CLIENT_BIN) client.c $(DIR_NAME)/$(OBJECTS) $(LIBS) $(CFLAGS)
-# $(CLIENT_BIN): $(HEADERS)
-
-client.o: $(HEADERS) $(SOURCES)
-	$(CC) functions.o $(OFLAGS) $(SOURCES) 
-
-test: $(OBJECTS)
-
-$(DIR_NAME)/%.o: src/%.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(HEADERS) -c $< -o $@
+$(CLIENT_BIN): client.c client.o
+	$(CC) -o $(DIR_NAME)/$(CLIENT_BIN) client.c $(DIR_NAME)/client.o $(LIBS) $(CFLAGS)
 
 clean:
 	rm -rf ./$(DIR_NAME) *.o
