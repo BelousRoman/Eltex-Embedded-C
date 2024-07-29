@@ -1,5 +1,14 @@
 /*
-* Eltex's academy homework #17 for lecture 42 "Raw Socket"
+* Eltex's academy homework #17 for lecture 42 "Raw Socket: Transport Layer"
+*
+* The server() function is an UDP socket server, receiving a message from
+* client, then sending back answer.
+*
+* The client() function is RAW socket client, forming a packet out of UDP
+* transport layer header and message and then sending it to a server. After
+* that, client locks in a loop, reading incoming packets and parsing
+* destination port in packet's header until verifying, that client is this
+* message recipient.
 */
 
 #ifndef HOMEWORK17_H
@@ -27,7 +36,7 @@
 #define CLIENT_PORT                         9876
 
 /**
- * @brief       UDP Server, receiving message,
+ * @brief       UDP Server, receiving message and replying to client.
  * @return      0 on success, 1 on errors
  */
 int server(void);
