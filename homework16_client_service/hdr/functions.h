@@ -53,6 +53,7 @@
 #define CLIENT_UDP_COUNTER_SEM_NAME         "/client_udp_counter"
 
 #define CLIENT_MODE                         TERMINATING
+#define SERVER_SLEEP_DUR_NSEC               100000
 
 enum client_modes
 {

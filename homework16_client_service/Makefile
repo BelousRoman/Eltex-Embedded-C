@@ -9,10 +9,14 @@ CC := gcc -Wall
 CFLAGS := -g
 OFLAGS := -c
 LIBS := -pthread
+DIR_NAME := build
 
 all: $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(MULTIPROTO_CLIENT_BIN)
 	mkdir -p ./build
 	mv -f $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(MULTIPROTO_CLIENT_BIN) ./build
+
+dir:
+	mkdir -p ./$(DIR_NAME)
 
 $(SERIAL_SERV_BIN): serial_server.c src/serial_server.c
 	$(CC) -o $(SERIAL_SERV_BIN) serial_server.c src/serial_server.c $(LIBS) $(CFLAGS)
