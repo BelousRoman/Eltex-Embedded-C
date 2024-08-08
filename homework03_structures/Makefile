@@ -5,7 +5,6 @@ OBJECTS := functions.o
 CC := gcc -Wall
 CFLAGS := -g
 OFLAGS := -c
-LIBS := -pthread
 DIR_NAME := build
 
 all: dir $(BIN) $(CLIENT_BIN)
@@ -18,7 +17,7 @@ dir:
 %.o: $(HEADERS)
 
 $(BIN): main.c functions.o
-	$(CC) -o $(DIR_NAME)/$(BIN) main.c $(DIR_NAME)/functions.o $(LIBS) $(CFLAGS)
+	$(CC) -o $(DIR_NAME)/$(BIN) main.c $(DIR_NAME)/functions.o $(CFLAGS)
 
 clean:
 	rm -rf ./$(DIR_NAME)

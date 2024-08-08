@@ -4,13 +4,21 @@ int first_task(int argc, char *argv[])
 {
     puts("First task");
 
+    /*
+    * Declare:
+    * - opt - return value of getopt, passed as character;
+    * - number - value to which bitmask will be applied;
+    * - bit_mask - mask, consisting of 8 bits.
+    */
     int opt;
-    struct mask number;
-    struct mask bit_mask;
+    struct char_val number;
+    struct char_val bit_mask;
 
+    /* Set initial values */
     number.value = VALUE;
     bit_mask.value = BIT_MASK;
 
+    /* Get options, provided to program */
     while ((opt = getopt(argc, argv, "v:d:b:h:")) != -1)
     {
         switch (opt)
@@ -30,7 +38,7 @@ int first_task(int argc, char *argv[])
         default:
             fprintf(stderr, "Usage: %s [-v value] [-d decimal mask] " \
                     "[-b binary mask] [-h hexadecimal mask]\n", argv[0]);
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
     }
 
@@ -44,6 +52,7 @@ int first_task(int argc, char *argv[])
             bit_mask.byte.b5, bit_mask.byte.b4, bit_mask.byte.b3,
             bit_mask.byte.b2, bit_mask.byte.b1);
 
+    /* Apply bitmask */
     number.value = number.value & bit_mask.value;
 
     printf("Changed value: %d (0b%d%d%d%d%d%d%d%d)\n", number.value,

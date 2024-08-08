@@ -1,7 +1,9 @@
 /*
 * Eltex's academy homework #2 for lecture 10 "Pointers"
 *
-* The server() function.
+* The first_task function takes main function's argc and argv arguments in
+* order to process getopt options, it then changes one specific byte in an int
+* type value.
 */
 
 #ifndef HOMEWORK2_H
@@ -17,7 +19,9 @@
 #define NEW_VALUE           0xEE
 
 /**
- * @brief       0
+ * @brief       Change value in int variable's one specific byte
+ * @param int argc - number of arguments.
+ * @param char** argv - array of arguments.
  * @return      0 on success, 1 on errors
  */
 int first_task(int, char **);

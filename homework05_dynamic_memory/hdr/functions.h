@@ -1,7 +1,9 @@
 /*
 * Eltex's academy homework #5 for lecture 18 "Dynamic memory"
 *
-* The server() function.
+* The first_task function reads stdin filestream and fills dynamic array of
+* dictionary with entries, each containing name, surname and phone number of a
+* person.
 */
 
 #ifndef HOMEWORK5_H
@@ -21,6 +23,7 @@
 #define PHONE_LEN       12
 #define STDIN_STR_LEN   80
 
+/* Structure, containing persons info */
 struct dictionary
 {
     char name[NAME_LEN+1];
@@ -29,7 +32,7 @@ struct dictionary
 };
 
 /**
- * @brief       0
+ * @brief       Read stdin filestream and fill dynamic array of dictionary
  * @return      0 on success, 1 on errors
  */
 int first_task();
