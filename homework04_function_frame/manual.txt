@@ -1,0 +1,28 @@
+Eltex's academy homework #4 for lectures 14-15 "Function frame"
+
+Call make to build binaries in directory, named 'build' by default, then move
+to newly created directory.
+This homework's theme is about changing return adress value to the value, that
+allows us to bypass password validation by taking advantage of use of unsafe
+'gets' function.
+
+Above-mentioned result could be achieved simply by redirecting 'bypass.txt'
+file contents to 'hw4_function_frame' stdin buffer by calling next command in
+CLI:
+    ./hw4_function_frame < bypass.txt
+
+In case, if result, shown on screenshots has not been reached, there is an
+utility to generate simillar bypass files by providing password string of
+chosen length and hexadecimal bytes string. This util has next usage:
+    ./bypass_util [-f filename] [-p password string] [-l password length]
+                    [-h hexadecimal string] [-b hex bytes]
+
+Hexadecimal string must contain 8 bytes rbp value and up to 8 bytes of return
+address in order to bypass password validation. These hex values can be
+obtained in gdb by disassambling and examining test.c code with next commands:
+* 'disassamble' to see assambler instructions, called by program, this also
+    provides addresses in DATA segment of each instruction, which is used as
+    second hexadecimal value in bypass file;
+* 'x/(decimal number of bytes)bx (variable or register)' to print out memory
+    contents, including rbp value and return address in function frame, rbp is
+    then used as first value in bypass file.
