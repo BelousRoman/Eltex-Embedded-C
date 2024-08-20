@@ -1,5 +1,7 @@
 /*
 * Eltex's academy homework #16 for lecture 39 "Client Service Schemes"
+*
+* qwe
 */
 
 #ifndef HOMEWORK16_H
@@ -31,14 +33,19 @@
 #define SERVER_TCP_PORT                     9875
 #define SERVER_UDP_PORT                     9876
 #define SERVER_LISTEN_BACKLOG               5
-#define SERVER_DEF_ALLOC                    5
+#define SERVER_DEF_ALLOC                    2
 #define SERVER_Q_MAXMSG                     5
 #define SERVER_TCP_Q_MSGSIZE                sizeof(int)
 #define SERVER_UDP_Q_MSGSIZE                sizeof(struct sockaddr_in)
+#define SERVER_CLIENTS_Q_MSGSIZE            sizeof(int)
 #define SERVER_MSG_SIZE                     MSG_SIZE
-#define SERVER_MSG                          "Message"
+#define SERVER_MSG                          "Server"
 #define SERVER_TCP_QUEUE_NAME               "/tcp_server_fds"
 #define SERVER_UDP_QUEUE_NAME               "/udp_server_endpoints"
+#define SERVER_TCP_CLIENTS_Q_NAME           "/tcp_server_clients"
+#define SERVER_UDP_CLIENTS_Q_NAME           "/udp_server_clients"
+#define SERVER_TCP_ACK_CLIENTS_Q_NAME       "/tcp_server_ack_clients"
+#define SERVER_UDP_ACK_CLIENTS_Q_NAME       "/udp_server_ack_clients"
 #define SERVER_TCP_FREE_THREADS_SEM_NAME    "/free_tcp_threads"
 #define SERVER_UDP_FREE_THREADS_SEM_NAME    "/free_udp_threads"
 #define SERVER_TCP_BUSY_THREADS_SEM_NAME    "/busy_tcp_threads"
@@ -46,9 +53,9 @@
 #define SERVER_SERVED_TCP_CLIENTS_SEM_NAME  "/served_tcp_clients"
 #define SERVER_SERVED_UDP_CLIENTS_SEM_NAME  "/served_udp_clients"
 
-#define CLIENT_DEF_ALLOC                    5
+#define CLIENT_DEF_ALLOC                    2
 #define CLIENT_MSG_SIZE                     MSG_SIZE
-#define CLIENT_MSG                          "Message"
+#define CLIENT_MSG                          "Client"
 #define CLIENT_TCP_COUNTER_SEM_NAME         "/client_tcp_counter"
 #define CLIENT_UDP_COUNTER_SEM_NAME         "/client_udp_counter"
 
@@ -105,6 +112,13 @@ int client(void);
  * @return      0
  */
 int multiproto_server(void);
+
+/**
+ * @brief       Multiprotocol (TCP+UDP) server, that uses producer and consumer
+ *              scheme, based on packet switching technology.
+ * @return      0
+ */
+int producer_server(void);
 
 /**
  * @brief       Multiprotocol (TCP+UDP) client, creating new threads, 

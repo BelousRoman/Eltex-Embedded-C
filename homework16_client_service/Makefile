@@ -2,6 +2,7 @@ SERIAL_SERV_BIN := serial_server
 CLASSIC_SERV_BIN := classic_server
 CLIENT_BIN := client
 MULTIPROTO_SERV_BIN := multiproto_server
+PRODUCER_SERV_BIN := producer_server
 MULTIPROTO_CLIENT_BIN := multiproto_client
 HEADERS := hdr/*.h
 SOURCES := src/*.c
@@ -11,9 +12,11 @@ OFLAGS := -c
 LIBS := -pthread
 DIR_NAME := build
 
-all: $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(MULTIPROTO_CLIENT_BIN)
+# all: $(PRODUCER_SERV_BIN) $(MULTIPROTO_CLIENT_BIN)
+all: $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(PRODUCER_SERV_BIN) $(MULTIPROTO_CLIENT_BIN)
 	mkdir -p ./build
-	mv -f $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(MULTIPROTO_CLIENT_BIN) ./build
+	# mv -f $(PRODUCER_SERV_BIN) $(MULTIPROTO_CLIENT_BIN) ./build
+	mv -f $(SERIAL_SERV_BIN) $(CLASSIC_SERV_BIN) $(CLIENT_BIN) $(MULTIPROTO_SERV_BIN) $(PRODUCER_SERV_BIN) $(MULTIPROTO_CLIENT_BIN) ./build
 
 dir:
 	mkdir -p ./$(DIR_NAME)
@@ -33,6 +36,10 @@ $(CLIENT_BIN): $(HEADERS)
 $(MULTIPROTO_SERV_BIN): multiproto_server.c src/multiproto_server.c
 	$(CC) -o $(MULTIPROTO_SERV_BIN) multiproto_server.c src/multiproto_server.c $(LIBS) $(CFLAGS)
 $(MULTIPROTO_SERV_BIN): $(HEADERS)
+
+$(PRODUCER_SERV_BIN): producer_server.c src/producer_server.c
+	$(CC) -o $(PRODUCER_SERV_BIN) producer_server.c src/producer_server.c $(LIBS) $(CFLAGS)
+$(PRODUCER_SERV_BIN): $(HEADERS)
 
 $(MULTIPROTO_CLIENT_BIN): multiproto_client.c src/multiproto_client.c
 	$(CC) -o $(MULTIPROTO_CLIENT_BIN) multiproto_client.c src/multiproto_client.c $(LIBS) $(CFLAGS)
