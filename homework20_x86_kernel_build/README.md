@@ -1,0 +1,1 @@
+Eltex's academy homework #20 for lecture 48 "Building Linux kernel under X86 system"
