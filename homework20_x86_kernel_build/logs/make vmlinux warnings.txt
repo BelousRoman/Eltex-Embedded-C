@@ -1,0 +1,4 @@
+drivers/cpufreq/cpufreq_ondemand.c: In function ‘od_set_powersave_bias’:
+drivers/cpufreq/cpufreq_ondemand.c:449:1: warning: the frame size of 1032 bytes is larger than 1024 bytes [-Wframe-larger-than=]
+ }
+
