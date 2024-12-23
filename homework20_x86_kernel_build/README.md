@@ -1,6 +1,6 @@
 # Eltex's academy homework #20 for lecture 48 "Building Linux kernel under X86 system"
 
-Build was performed on the [Linux Kernel](https://github.com/torvalds/linux) v4.15 using working config file from /boot/ directory.
+Build was performed on the [Linux Kernel](https://github.com/torvalds/linux) v4.15 on Ubuntu 16.04.7 using working config file from /boot/ directory.
 
 To build a kernel for x86 system the following steps should be made:
 1)  Hop onto required kernel version by calling 'git checkout v{your kernel version}'. The version usually specified in the config file's name, i.e.:
