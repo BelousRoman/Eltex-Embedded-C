@@ -1,0 +1,238 @@
+QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel ../zImage -dtb ../vexpress-v2p-ca9.dtb -initrd init.cpio.gz -append "console=ttyAMA0" -nographic
+lan9118: error: PHY write reg 13 = 0x0003
+lan9118: error: PHY write reg 14 = 0x0014
+lan9118: error: PHY write reg 13 = 0x4003
+lan9118: error: PHY read reg 14
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 6.12.0 (roman@Ubuntu16) (arm-linux-gnueabihf-gcc (Ubuntu/Linaro 5.4.0-6ubuntu1~16.04.9) 5.4.0 20160609, GNU ld (GNU Binutils for Ubuntu) 2.26.1) #1 SMP Thu Dec 12 23:34:50 +07 2024
+[    0.000000] CPU: ARMv7 Processor [410fc090] revision 0 (ARMv7), cr=10c5387d
+[    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT nonaliasing instruction cache
+[    0.000000] OF: fdt: Machine model: V2P-CA9
+[    0.000000] Memory policy: Data cache writeback
+[    0.000000] efi: UEFI not found.
+[    0.000000] Reserved memory: created DMA memory pool at 0x4c000000, size 8 MiB
+[    0.000000] OF: reserved mem: initialized node vram@4c000000, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x4c000000..0x4c7fffff (8192 KiB) nomap non-reusable vram@4c000000
+[    0.000000] cma: Failed to reserve 64 MiB on node -1
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x0000000060000000-0x0000000067ffffff]
+[    0.000000]   Normal   empty
+[    0.000000]   HighMem  empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000060000000-0x0000000067ffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000060000000-0x0000000067ffffff]
+[    0.000000] CPU: All CPU(s) started in SVC mode.
+[    0.000000] percpu: Embedded 17 pages/cpu s40844 r8192 d20596 u69632
+[    0.000000] Kernel command line: console=ttyAMA0
+[    0.000000] Dentry cache hash table entries: 16384 (order: 4, 65536 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 8192 (order: 3, 32768 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 32768
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[    0.000000] trace event string verifier disabled
+[    0.000000] rcu: Hierarchical RCU implementation.
+[    0.000000] rcu: 	RCU event tracing is enabled.
+[    0.000000] rcu: 	RCU restricting CPUs from NR_CPUS=16 to nr_cpu_ids=4.
+[    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 10 jiffies.
+[    0.000000] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+[    0.000000] NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+[    0.000000] GIC CPU mask not found - kernel will fail to boot.
+[    0.000000] GIC CPU mask not found - kernel will fail to boot.
+[    0.000000] L2C: platform modifies aux control register: 0x02020000 -> 0x02420000
+[    0.000000] L2C: DT/platform modifies aux control register: 0x02020000 -> 0x02420000
+[    0.000000] L2C-310 erratum 769419 enabled
+[    0.000000] L2C-310 enabling early BRESP for Cortex-A9
+[    0.000000] L2C-310 full line of zeros enabled for Cortex-A9
+[    0.000000] L2C-310 dynamic clock gating disabled, standby mode disabled
+[    0.000000] L2C-310 cache controller enabled, 8 ways, 128 kB
+[    0.000000] L2C-310: CACHE_ID 0x410000c8, AUX_CTRL 0x46420001
+[    0.000000] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    0.000075] sched_clock: 32 bits at 24MHz, resolution 41ns, wraps every 89478484971ns
+[    0.003183] clocksource: arm,sp804: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275 ns
+[    0.005783] smp_twd: clock not found -2
+[    0.009314] Console: colour dummy device 80x30
+[    0.009952] Calibrating local timer... 96.49MHz.
+[    0.064100] Calibrating delay loop... 1548.28 BogoMIPS (lpj=7741440)
+[    0.132716] CPU: Testing write buffer coherency: ok
+[    0.133528] CPU0: Spectre v2: using BPIALL workaround
+[    0.133599] pid_max: default: 32768 minimum: 301
+[    0.134728] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.134759] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.147868] CPU0: thread -1, cpu 0, socket 0, mpidr 80000000
+[    0.194134] Setting up static identity map for 0x60300000 - 0x603000ac
+[    0.196032] rcu: Hierarchical SRCU implementation.
+[    0.196055] rcu: 	Max phase no-delay instances is 1000.
+[    0.197166] Timer migration: 1 hierarchy levels; 8 children per group; 1 crossnode level
+[    0.201263] EFI services will not be available.
+[    0.202553] smp: Bringing up secondary CPUs ...
+[    0.207469] smp: Brought up 1 node, 1 CPU
+[    0.207513] SMP: Total of 1 processors activated (1548.28 BogoMIPS).
+[    0.207555] CPU: All CPU(s) started in SVC mode.
+[    0.209179] Memory: 98248K/131072K available (16384K kernel code, 2543K rwdata, 6824K rodata, 2048K init, 434K bss, 31376K reserved, 0K cma-reserved, 0K highmem)
+[    0.212579] devtmpfs: initialized
+[    0.220772] VFP support v0.3: implementor 41 architecture 3 part 30 variant 9 rev 0
+[    0.231855] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+[    0.232291] futex hash table entries: 1024 (order: 4, 65536 bytes, linear)
+[    0.235194] pinctrl core: initialized pinctrl subsystem
+[    0.242665] DMI not present or invalid.
+[    0.253492] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.256604] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.261605] thermal_sys: Registered thermal governor 'step_wise'
+[    0.265053] cpuidle: using governor menu
+[    0.265601] No ATAGs?
+[    0.265641] hw-breakpoint: debug architecture 0x4 unsupported.
+[    0.269958] Serial: AMBA PL011 UART driver
+[    0.293563] amba 1001f000.clcd: Fixed dependency cycle(s) with /bus@40000000/motherboard-bus@40000000/iofpga@7,00000000/i2c@16000/dvi-transmitter@39
+[    0.296122] amba 10020000.clcd: Fixed dependency cycle(s) with /bus@40000000/motherboard-bus@40000000/iofpga@7,00000000/i2c@16000/dvi-transmitter@39
+[    0.338935] iommu: Default domain type: Translated
+[    0.338966] iommu: DMA domain TLB invalidation policy: strict mode
+[    0.341329] SCSI subsystem initialized
+[    0.342742] usbcore: registered new interface driver usbfs
+[    0.342879] usbcore: registered new interface driver hub
+[    0.342976] usbcore: registered new device driver usb
+[    0.344833] pps_core: LinuxPPS API ver. 1 registered
+[    0.344851] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[    0.344895] PTP clock support registered
+[    0.345139] EDAC MC: Ver: 3.0.0
+[    0.351236] scmi_core: SCMI protocol bus registered
+[    0.374287] vgaarb: loaded
+[    0.377085] clocksource: Switched to clocksource arm,sp804
+[    0.428663] NET: Registered PF_INET protocol family
+[    0.429439] IP idents hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.432730] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.432787] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.432828] TCP established hash table entries: 1024 (order: 0, 4096 bytes, linear)
+[    0.432941] TCP bind hash table entries: 1024 (order: 2, 16384 bytes, linear)
+[    0.433014] TCP: Hash tables configured (established 1024 bind 1024)
+[    0.433492] UDP hash table entries: 256 (order: 1, 8192 bytes, linear)
+[    0.433598] UDP-Lite hash table entries: 256 (order: 1, 8192 bytes, linear)
+[    0.434173] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.448272] RPC: Registered named UNIX socket transport module.
+[    0.448303] RPC: Registered udp transport module.
+[    0.448314] RPC: Registered tcp transport module.
+[    0.448321] RPC: Registered tcp-with-tls transport module.
+[    0.448329] RPC: Registered tcp NFSv4.1 backchannel transport module.
+[    0.448376] PCI: CLS 0 bytes, default 64
+[    0.450597] Initialise system trusted keyrings
+[    0.453604] Trying to unpack rootfs image as initramfs...
+[    0.472507] Freeing initrd memory: 244K
+[    0.472953] workingset: timestamp_bits=30 max_order=15 bucket_order=0
+[    0.475465] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[    0.489624] NFS: Registering the id_resolver key type
+[    0.489793] Key type id_resolver registered
+[    0.489814] Key type id_legacy registered
+[    0.489989] nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+[    0.490029] nfs4flexfilelayout_init: NFSv4 Flexfile Layout Driver Registering...
+[    0.490890] Key type asymmetric registered
+[    0.490920] Asymmetric key parser 'x509' registered
+[    0.491068] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 246)
+[    0.491131] io scheduler mq-deadline registered
+[    0.491181] io scheduler kyber registered
+[    0.491245] io scheduler bfq registered
+[    0.546139] ledtrig-cpu: registered to indicate activity on CPUs
+[    0.815354] Serial: 8250/16550 driver, 5 ports, IRQ sharing enabled
+[    0.825207] msm_serial: driver initialized
+[    0.825773] SuperH (H)SCI(F) driver initialized
+[    0.826090] STMicroelectronics ASC driver initialized
+[    0.826281] STM32 USART driver initialized
+[    0.892110] brd: module loaded
+[    0.920881] loop: module loaded
+[    1.127435] simple-pm-bus bus@40000000:motherboard-bus@40000000:iofpga@7,00000000: Failed to create device link (0x180) with dcc:clock-controller-2
+[    1.165886] simple-pm-bus bus@40000000:motherboard-bus@40000000:iofpga@7,00000000: Failed to create device link (0x180) with dcc:clock-controller-2
+[    1.189200] physmap-flash 40000000.flash: physmap platform flash device: [mem 0x40000000-0x43ffffff]
+[    1.190082] 40000000.flash: Found 2 x16 devices at 0x0 in 32-bit bank. Manufacturer ID 0x000000 Chip ID 0x000000
+[    1.190323] Intel/Sharp Extended Query Table at 0x0031
+[    1.190638] Using buffer write method
+[    1.192792] physmap-flash 40000000.flash: physmap platform flash device: [mem 0x44000000-0x47ffffff]
+[    1.193037] 40000000.flash: Found 2 x16 devices at 0x0 in 32-bit bank. Manufacturer ID 0x000000 Chip ID 0x000000
+[    1.193072] Intel/Sharp Extended Query Table at 0x0031
+[    1.193261] Using buffer write method
+[    1.193319] Concatenating MTD devices:
+[    1.193332] (0): "40000000.flash"
+[    1.193347] (1): "40000000.flash"
+[    1.193378] into device "40000000.flash"
+[    1.265927] physmap-flash 48000000.psram: physmap platform flash device: [mem 0x48000000-0x49ffffff]
+[    1.297376] physmap-flash 48000000.psram: map_probe failed
+[    1.314525] CAN device driver interface
+[    1.316891] bgmac_bcma: Broadcom 47xx GBit MAC driver loaded
+[    1.318910] e1000e: Intel(R) PRO/1000 Network Driver
+[    1.318922] e1000e: Copyright(c) 1999 - 2015 Intel Corporation.
+[    1.318992] igb: Intel(R) Gigabit Ethernet Network Driver
+[    1.319003] igb: Copyright (c) 2007-2014 Intel Corporation.
+[    1.417288] smsc911x 4e000000.ethernet eth0: MAC Address: 52:54:00:12:34:56
+[    1.423615] pegasus: Pegasus/Pegasus II USB Ethernet driver
+[    1.423697] usbcore: registered new interface driver pegasus
+[    1.423772] usbcore: registered new interface driver asix
+[    1.423857] usbcore: registered new interface driver ax88179_178a
+[    1.423914] usbcore: registered new interface driver cdc_ether
+[    1.423966] usbcore: registered new interface driver smsc75xx
+[    1.424019] usbcore: registered new interface driver smsc95xx
+[    1.424074] usbcore: registered new interface driver net1080
+[    1.424128] usbcore: registered new interface driver cdc_subset
+[    1.424182] usbcore: registered new interface driver zaurus
+[    1.424248] usbcore: registered new interface driver cdc_ncm
+[    1.555545] isp1760 4f000000.usb: isp1760 bus width: 32, oc: digital
+[    1.555831] isp1760 4f000000.usb: NXP ISP1760 USB Host Controller
+[    1.555921] isp1760 4f000000.usb: new USB bus registered, assigned bus number 1
+[    1.556495] isp1760 4f000000.usb: Scratch test failed. 0x00000000
+[    1.556534] isp1760 4f000000.usb: can't setup: -19
+[    1.556665] isp1760 4f000000.usb: USB bus 1 deregistered
+[    1.561966] usbcore: registered new interface driver usb-storage
+[    1.579335] rtc-pl031 10017000.rtc: registered as rtc0
+[    1.579798] rtc-pl031 10017000.rtc: setting system clock to 2024-12-23T16:37:03 UTC (1734971823)
+[    1.583105] i2c_dev: i2c /dev entries driver
+[    1.627065] mmci-pl18x 10005000.mmci: Got CD GPIO
+[    1.627164] mmci-pl18x 10005000.mmci: Got WP GPIO
+[    1.642356] mmci-pl18x 10005000.mmci: mmc0: PL181 manf 41 rev0 at 0x10005000 irq 31,32 (pio)
+[    1.643388] sdhci: Secure Digital Host Controller Interface driver
+[    1.643400] sdhci: Copyright(c) Pierre Ossman
+[    1.646887] Synopsys Designware Multimedia Card Interface Driver
+[    1.649887] sdhci-pltfm: SDHCI platform and OF driver helper
+[    1.657440] usbcore: registered new interface driver usbhid
+[    1.657457] usbhid: USB HID core driver
+[    1.713786] hw perfevents: enabled with armv7_cortex_a9 PMU driver, 1 (80000000) counters available
+[    1.717743] NET: Registered PF_INET6 protocol family
+[    1.722658] Segment Routing with IPv6
+[    1.722800] In-situ OAM (IOAM) with IPv6
+[    1.723067] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+[    1.724757] NET: Registered PF_PACKET protocol family
+[    1.724784] can: controller area network core
+[    1.724978] NET: Registered PF_CAN protocol family
+[    1.725012] can: raw protocol
+[    1.725078] can: broadcast manager protocol
+[    1.726152] can: netlink gateway - max_hops=1
+[    1.726893] Key type dns_resolver registered
+[    1.727258] ThumbEE CPU extension supported.
+[    1.727296] Registering SWP/SWPB emulation handler
+[    1.777644] Loading compiled-in X.509 certificates
+[    1.796960] 10009000.serial: ttyAMA0 at MMIO 0x10009000 (irq = 37, base_baud = 0) is a PL011 rev1
+[    1.797723] printk: legacy console [ttyAMA0] enabled
+[    1.837797] 1000a000.serial: ttyAMA1 at MMIO 0x1000a000 (irq = 38, base_baud = 0) is a PL011 rev1
+[    1.839514] 1000b000.serial: ttyAMA2 at MMIO 0x1000b000 (irq = 39, base_baud = 0) is a PL011 rev1
+[    1.841227] 1000c000.serial: ttyAMA3 at MMIO 0x1000c000 (irq = 40, base_baud = 0) is a PL011 rev1
+[    2.006896] input: ImExPS/2 Generic Explorer Mouse as /devices/platform/bus@40000000/bus@40000000:motherboard-bus@40000000/bus@40000000:motherboard-bus@40000000:iofpga@7,00000000/10007000.kmi/serio1/input/input1
+[    2.129110] input: AT Raw Set 2 keyboard as /devices/platform/bus@40000000/bus@40000000:motherboard-bus@40000000/bus@40000000:motherboard-bus@40000000:iofpga@7,00000000/10006000.kmi/serio0/input/input2
+[    2.653418] clk: Disabling unused clocks
+[    2.653843] PM: genpd: Disabling unused power domains
+[    2.671462] Freeing unused kernel image (initmem) memory: 2048K
+[    2.674472] Run /init as init process
+*** Init process started!
+Put to sleep for 10 seconds
+[   12.659609] amba 1000f000.wdt: deferred probe pending: (reason unknown)
+[   12.659824] amba 100e0000.memory-controller: deferred probe pending: (reason unknown)
+[   12.659935] amba 100e1000.memory-controller: deferred probe pending: (reason unknown)
+[   12.660027] amba 100e5000.watchdog: deferred probe pending: (reason unknown)
+*** Init process ending, kernel panic expected
+[   12.713990] Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000000
+[   12.714399] CPU: 0 UID: 0 PID: 1 Comm: init Not tainted 6.12.0 #1
+[   12.714554] Hardware name: ARM-Versatile Express
+[   12.714684] Call trace: 
+[   12.716014]  unwind_backtrace from show_stack+0x10/0x14
+[   12.716662]  show_stack from dump_stack_lvl+0x50/0x64
+[   12.716802]  dump_stack_lvl from panic+0x110/0x384
+[   12.716936]  panic from do_exit+0x99c/0xad4
+[   12.717142]  do_exit from do_group_exit+0x34/0x9c
+[   12.717275]  do_group_exit from pid_child_should_wake+0x0/0x60
+[   12.717792] ---[ end Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000000 ]---
+QEMU: Terminated

@@ -1,0 +1,9 @@
+echo make mrproper > busybox_log.txt && make mrproper >> busybox_log.txt && echo ARCH=arm make defconfig >> busybox_log.txt && ARCH=arm make defconfig >> busybox_log.txt && ARCH=arm make menuconfig
+
+
+in Settings (1.36 & 1.37) or Settings/Build options (1.24)
+* Check 'Build static binary (no shared libs)'
+* Set 'Cross compiler prefix' to 'arm-linux-gnueabihf-'
+
+In '_install' directory
+Remove linuxrc, to treat busybox's as permanent filesystem, not temporary
