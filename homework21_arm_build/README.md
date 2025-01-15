@@ -74,5 +74,5 @@ Then pass `init.cpio.gz` to qemu as initrd argument
 I've performed 4 various qemu boots, logs can be viewed in this homework's subdirectories:
 1)  [Boot with basic filesystem, containing only init process binary](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_with_basic_rootfs);
 2)  [Boot with filesystem with dynamic linkage](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_with_dynamic_linkage);
-3)  [Boot with filesystem with dynamic linkage](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_with_static_linkage);
+3)  [Boot with filesystem with static linkage](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_with_static_linkage);
 4)  [Boot without filesystem](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_without_rootfs).
