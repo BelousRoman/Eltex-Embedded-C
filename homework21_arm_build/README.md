@@ -76,3 +76,7 @@ I've performed 4 various qemu boots, logs can be viewed in this homework's subdi
 2)  [Boot with filesystem with dynamic linkage](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_with_dynamic_linkage);
 3)  [Boot with filesystem with static linkage](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_with_static_linkage);
 4)  [Boot without filesystem](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_without_rootfs).
+
+Also I've built kernel and busybox's filesystem under Ubuntu 22.04.5, using: [Linux Kernel v6.8](https://github.com/torvalds/linux/releases/tag/v6.8), [Busybox patch 999e...1c3e (2024-07-12)](https://git.busybox.net/busybox/commit/?h=1_37_stable&id=999e290ef64cbd49a9e0a0f6d3cfaf26414c1c3e) and QEMU 6.2.0.
+
+Log are provided in directory [qemu_boot_on_Ubuntu_22](https://github.com/BelousRoman/Eltex-Embedded-C/tree/main/homework21_arm_build/qemu_boot_on_Ubuntu_22)
