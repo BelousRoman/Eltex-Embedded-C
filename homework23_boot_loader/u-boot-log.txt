@@ -35,9 +35,7 @@ scripts/kconfig/mconf  Kconfig
 configuration written to .config
 
 *** End of the configuration.
-*** Execute 'make' to start the build or try 'make help'.
-
-ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make u-boot
+ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make all
 scripts/kconfig/conf  --syncconfig Kconfig
   UPD     include/config.h
   CFG     u-boot.cfg
@@ -570,3 +568,15 @@ scripts/kconfig/conf  --syncconfig Kconfig
   AR      net/built-in.o
   LDS     u-boot.lds
   LD      u-boot
+  OBJCOPY u-boot.srec
+  OBJCOPY u-boot-nodtb.bin
+  COPY    u-boot.bin
+  SYM     u-boot.sym
+===================== WARNING ======================
+CONFIG_OF_EMBED is enabled. This option should only
+be used for debugging purposes. Please use
+CONFIG_OF_SEPARATE for boards in mainline.
+See doc/develop/devicetree/control.rst for more info.
+====================================================
+  OFCHK   .config
+
