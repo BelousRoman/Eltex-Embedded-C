@@ -1,5 +1,0 @@
-make distclean
-ARCH=arm make vexpress-ca9x4-defconfig
-ARCH=arm make menuconfig
-disable 'Use OpenSSL's libcrypto library for host tools'
-ARCH=arm CROSS-COMPILE=arm-linux-gnuebihf- make u-boot
