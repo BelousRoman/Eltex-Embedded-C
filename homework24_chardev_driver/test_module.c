@@ -20,8 +20,9 @@
 #include <linux/device.h>
 #include <linux/version.h>
 
-/* Set this to manually create file in /dev/ dir,
-* Example: 'mknod test_module c <major> <minor>'
+/* Set this to manually create file in /dev/ dir, like:
+*       cd /dev/
+*       mknod -m0666 test_module c 240 0
 */
 #define MKNOD_DEV_FILE              0
 /* Redefine chardev file handlers for openning and releasing the file. */
