@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Sample kset and ktype implementation
- *
- * Copyright (C) 2004-2007 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2007 Novell Inc.
- */
 #include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
