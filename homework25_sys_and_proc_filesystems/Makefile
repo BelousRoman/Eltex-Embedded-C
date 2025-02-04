@@ -1,5 +1,5 @@
 obj-m += sysfs_module.o
-# obj-m += procfs_module.o
+obj-m += procfs_module.o
 
 PWD := $(CURDIR)
 
